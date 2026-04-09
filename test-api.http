@@ -1,0 +1,57 @@
+### 1. Signup / Register a new user
+POST http://localhost:8080/auth/signup
+Content-Type: application/json
+
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "mySecurePassword123"
+}
+
+###
+
+### 2. Login
+POST http://localhost:8080/auth/login
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "mySecurePassword123"
+}
+
+> {%
+// Automatically capture the tokens if using IntelliJ HTTP Client or VSCode REST Client
+client.global.set("auth_token", response.body.accessToken);
+client.global.set("refresh_token", response.body.refreshToken);
+%}
+
+###
+
+### 3. Get Current User (Me)
+GET http://localhost:8080/auth/me
+Authorization: Bearer {{auth_token}}
+
+###
+
+### 4. Refresh Token
+POST http://localhost:8080/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh_token}}"
+}
+
+> {%
+// Capture the new token
+client.global.set("auth_token", response.body.accessToken);
+%}
+
+###
+
+### 5. Logout
+POST http://localhost:8080/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh_token}}"
+}

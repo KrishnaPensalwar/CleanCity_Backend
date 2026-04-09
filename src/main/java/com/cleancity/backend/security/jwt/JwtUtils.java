@@ -1,0 +1,58 @@
+package com.cleancity.backend.security.jwt;
+
+import com.cleancity.backend.security.services.UserDetailsImpl;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Component;
+
+import java.security.Key;
+import java.util.Date;
+
+@Component
+public class JwtUtils {
+
+    @Value("${app.jwtSecret:4f4d2f8016467389a9f4c3ecf52d5b62b083b4b60098f489f6b98ea6fbd4b6dc}")
+    private String jwtSecret;
+
+    @Value("${app.jwtExpirationMs:900000}")
+    private int jwtExpirationMs;
+
+    public String generateJwtToken(Authentication authentication) {
+        UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
+
+        return Jwts.builder()
+                .setSubject((userPrincipal.getEmail()))
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .signWith(key(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+    
+    public String generateTokenFromEmail(String email) {
+        return Jwts.builder().setSubject(email).setIssuedAt(new Date())
+            .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs)).signWith(key(), SignatureAlgorithm.HS256)
+            .compact();
+    }
+
+    private Key key() {
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+    }
+
+    public String getEmailFromJwtToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(key()).build()
+                   .parseClaimsJws(token).getBody().getSubject();
+    }
+
+    public boolean validateJwtToken(String authToken) {
+        try {
+            Jwts.parserBuilder().setSigningKey(key()).build().parse(authToken);
+            return true;
+        } catch (MalformedJwtException | IllegalArgumentException | SignatureException | ExpiredJwtException | UnsupportedJwtException e) {
+            System.err.println("Invalid JWT Token: " + e.getMessage());
+        }
+        return false;
+    }
+}
