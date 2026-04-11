@@ -1,6 +1,8 @@
 package com.cleancity.backend.security.jwt;
 
 import com.cleancity.backend.security.services.UserDetailsImpl;
+import com.cleancity.backend.repository.UserRepository;
+import com.cleancity.backend.entity.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -20,21 +22,36 @@ public class JwtUtils {
     @Value("${app.jwtExpirationMs:900000}")
     private int jwtExpirationMs;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private UserRepository userRepository;
+
     public String generateJwtToken(Authentication authentication) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
 
-        return Jwts.builder()
-                .setSubject((userPrincipal.getEmail()))
-                .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(key(), SignatureAlgorithm.HS256)
-                .compact();
+    return Jwts.builder()
+        .setSubject((userPrincipal.getEmail()))
+        .claim("roles", userPrincipal.getRole())
+        .setIssuedAt(new Date())
+        .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
+        .signWith(key(), SignatureAlgorithm.HS256)
+        .compact();
     }
     
     public String generateTokenFromEmail(String email) {
+        // try to add role claim if user exists
+        try {
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                return Jwts.builder().setSubject(email).claim("roles", user.getRole()).setIssuedAt(new Date())
+                        .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs)).signWith(key(), SignatureAlgorithm.HS256)
+                        .compact();
+            }
+        } catch (Exception e) {
+            // fallback to token without role
+        }
         return Jwts.builder().setSubject(email).setIssuedAt(new Date())
-            .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs)).signWith(key(), SignatureAlgorithm.HS256)
-            .compact();
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs)).signWith(key(), SignatureAlgorithm.HS256)
+                .compact();
     }
 
     private Key key() {

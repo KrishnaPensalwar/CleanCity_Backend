@@ -4,22 +4,29 @@ import com.cleancity.backend.dto.MLValidationResult;
 import com.cleancity.backend.dto.ReportResponse;
 import com.cleancity.backend.entity.Report;
 import com.cleancity.backend.entity.ReportStatus;
+import com.cleancity.backend.entity.User;
 import com.cleancity.backend.repository.ReportRepository;
+import com.cleancity.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ReportService {
 
     private final ReportRepository reportRepository;
+    private final UserRepository userRepository;
     private final S3StorageService s3StorageService;
     private final MLValidationService mlValidationService;
 
-    public ReportService(ReportRepository reportRepository, S3StorageService s3StorageService,
+    public ReportService(ReportRepository reportRepository, UserRepository userRepository, S3StorageService s3StorageService,
             MLValidationService mlValidationService) {
         this.reportRepository = reportRepository;
+        this.userRepository = userRepository;
         this.s3StorageService = s3StorageService;
         this.mlValidationService = mlValidationService;
     }
@@ -87,5 +94,55 @@ public class ReportService {
                                                                                                         // year
             throw new IllegalArgumentException("Invalid timestamp.");
         }
+    }
+
+    public List<ReportResponse> getAllReports(ReportStatus status) {
+        List<Report> reports;
+        if (status != null) {
+            reports = reportRepository.findByStatus(status);
+        } else {
+            reports = reportRepository.findAll();
+        }
+        return reports.stream().map(ReportResponse::new).collect(Collectors.toList());
+    }
+
+    public ReportResponse approveReport(UUID reportId) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+        
+        if (report.getStatus() == ReportStatus.APPROVED) {
+            throw new IllegalArgumentException("Report is already approved");
+        }
+
+        report.setStatus(ReportStatus.APPROVED);
+        report = reportRepository.save(report);
+
+        // Add 10 reward points to the user
+        try {
+            UUID userUuid = UUID.fromString(report.getUserId());
+            userRepository.findById(userUuid).ifPresent(user -> {
+                user.setRewardPoints(user.getRewardPoints() + 10);
+                userRepository.save(user);
+            });
+        } catch (IllegalArgumentException e) {
+            // If userId is not a valid UUID, try to find user by email
+            userRepository.findByEmail(report.getUserId()).ifPresent(user -> {
+                user.setRewardPoints(user.getRewardPoints() + 10);
+                userRepository.save(user);
+            });
+            System.err.println("Could not parse userId as UUID, attempted email lookup: " + report.getUserId());
+        }
+
+        return new ReportResponse(report);
+    }
+
+    public ReportResponse rejectReport(UUID reportId) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+        
+        report.setStatus(ReportStatus.REJECTED);
+        report = reportRepository.save(report);
+        
+        return new ReportResponse(report);
     }
 }

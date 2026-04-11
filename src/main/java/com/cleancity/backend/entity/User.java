@@ -34,6 +34,12 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "reward_points", nullable = false)
+    private Integer rewardPoints = 0;
+
+    @Column(name = "role", nullable = false)
+    private String role = "ROLE_USER";
+
     public User() {}
 
     public User(String name, String email, String passwordHash) {
@@ -41,6 +47,9 @@ public class User {
         this.email = email;
         this.passwordHash = passwordHash;
     }
+
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -56,4 +65,6 @@ public class User {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public Integer getRewardPoints() { return rewardPoints; }
+    public void setRewardPoints(Integer rewardPoints) { this.rewardPoints = rewardPoints; }
 }

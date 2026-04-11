@@ -2,6 +2,7 @@ package com.cleancity.backend.security.services;
 
 import com.cleancity.backend.entity.User;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -15,6 +16,7 @@ public class UserDetailsImpl implements UserDetails {
     private String name;
     private String email;
     private String password;
+    private String role;
 
     public UserDetailsImpl(UUID id, String name, String email, String password) {
         this.id = id;
@@ -24,21 +26,25 @@ public class UserDetailsImpl implements UserDetails {
     }
 
     public static UserDetailsImpl build(User user) {
-        return new UserDetailsImpl(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getPasswordHash()
-        );
+    UserDetailsImpl u = new UserDetailsImpl(
+        user.getId(),
+        user.getName(),
+        user.getEmail(),
+        user.getPasswordHash()
+    );
+    u.role = user.getRole();
+    return u;
     }
 
     public UUID getId() { return id; }
     public String getName() { return name; }
     public String getEmail() { return email; }
+    public String getRole() { return role; }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+    if (role == null) return List.of();
+    return List.of(new SimpleGrantedAuthority(role));
     }
 
     @Override
