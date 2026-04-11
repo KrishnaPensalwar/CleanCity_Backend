@@ -17,26 +17,34 @@ public class ReportService {
     private final S3StorageService s3StorageService;
     private final MLValidationService mlValidationService;
 
-    public ReportService(ReportRepository reportRepository, S3StorageService s3StorageService, MLValidationService mlValidationService) {
+    public ReportService(ReportRepository reportRepository, S3StorageService s3StorageService,
+            MLValidationService mlValidationService) {
         this.reportRepository = reportRepository;
         this.s3StorageService = s3StorageService;
         this.mlValidationService = mlValidationService;
     }
 
-    public ReportResponse createReport(MultipartFile image, String userId, Long timestamp, Double latitude, Double longitude, String description) throws IOException {
+    public ReportResponse createReport(MultipartFile image, String userId, Long timestamp, Double latitude,
+            Double longitude, String description) throws IOException {
         validateInputs(image, timestamp, latitude, longitude);
 
         String imageUrl = s3StorageService.uploadFile(image);
-        MLValidationResult mlResult = mlValidationService.validateImage(imageUrl);
+        MLValidationResult mlResult = mlValidationService.validateImage(image.getBytes());
 
         ReportStatus status;
-        if (mlResult.getConfidence() > 0.8) {
-            status = ReportStatus.APPROVED;
-        } else if (mlResult.getConfidence() >= 0.5) {
-            status = ReportStatus.PENDING;
-        } else {
-            status = ReportStatus.REJECTED;
-        }
+
+        // Will implement in future .
+        /*
+         * 
+         * if (mlResult.getConfidence() > 0.8) {
+         * status = ReportStatus.APPROVED;
+         * } else if (mlResult.getConfidence() >= 0.5) {
+         * status = ReportStatus.PENDING;
+         * } else {
+         * status = ReportStatus.REJECTED;
+         * }
+         */
+        status = ReportStatus.PENDING;
 
         Report report = new Report();
         report.setUserId(userId);
@@ -46,9 +54,9 @@ public class ReportService {
         report.setLongitude(longitude);
         report.setDescription(description);
         report.setStatus(status);
-        report.setConfidence(mlResult.getConfidence());
-        report.setLabels(String.join(",", mlResult.getLabels()));
-        
+        // report.setConfidence(mlResult.getConfidence());
+        // report.setLabels(String.join(",", mlResult.getLabels()));
+
         Report savedReport = reportRepository.save(report);
 
         return new ReportResponse(savedReport);
@@ -58,7 +66,7 @@ public class ReportService {
         if (image == null || image.isEmpty()) {
             throw new IllegalArgumentException("Image file is missing or empty.");
         }
-        
+
         String contentType = image.getContentType();
         if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png"))) {
             throw new IllegalArgumentException("Only JPEG and PNG images are allowed.");
@@ -73,7 +81,10 @@ public class ReportService {
         }
 
         long currentTime = System.currentTimeMillis();
-        if (timestamp == null || timestamp > currentTime || timestamp < (currentTime - 31536000000L)) { // Not in the future, not older than 1 year
+        if (timestamp == null || timestamp > currentTime || timestamp < (currentTime - 31536000000L)) { // Not in the
+                                                                                                        // future, not
+                                                                                                        // older than 1
+                                                                                                        // year
             throw new IllegalArgumentException("Invalid timestamp.");
         }
     }

@@ -14,8 +14,8 @@ public class ReportResponse {
     private Double latitude;
     private Double longitude;
     private ReportStatus status;
-    private Double confidence;
-    private String labels;
+    // private Double confidence;
+    // private String labels;
     private String description;
     private LocalDateTime createdAt;
 
@@ -27,8 +27,8 @@ public class ReportResponse {
         this.latitude = report.getLatitude();
         this.longitude = report.getLongitude();
         this.status = report.getStatus();
-        this.confidence = report.getConfidence();
-        this.labels = report.getLabels();
+        // this.confidence = report.getConfidence();
+        // this.labels = report.getLabels();
         this.description = report.getDescription();
         this.createdAt = report.getCreatedAt();
     }
@@ -89,21 +89,21 @@ public class ReportResponse {
         this.status = status;
     }
 
-    public Double getConfidence() {
-        return confidence;
-    }
+    // public Double getConfidence() {
+    //     return confidence;
+    // }
 
-    public void setConfidence(Double confidence) {
-        this.confidence = confidence;
-    }
+    // public void setConfidence(Double confidence) {
+    //     this.confidence = confidence;
+    // }
 
-    public String getLabels() {
-        return labels;
-    }
+    // public String getLabels() {
+    //     return labels;
+    // }
 
-    public void setLabels(String labels) {
-        this.labels = labels;
-    }
+    // public void setLabels(String labels) {
+    //     this.labels = labels;
+    // }
 
     public String getDescription() {
         return description;
