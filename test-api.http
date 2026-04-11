@@ -55,3 +55,37 @@ Content-Type: application/json
 {
   "refreshToken": "{{refresh_token}}"
 }
+
+###
+
+### 6. Upload Image Report
+POST http://localhost:8080/api/reports
+Authorization: Bearer {{auth_token}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="image"; filename="test_image.jpg"
+Content-Type: image/jpeg
+
+< ./test_image.jpg
+--WebAppBoundary
+Content-Disposition: form-data; name="userId"
+
+12345
+--WebAppBoundary
+Content-Disposition: form-data; name="timestamp"
+
+1712676500000
+--WebAppBoundary
+Content-Disposition: form-data; name="latitude"
+
+37.7749
+--WebAppBoundary
+Content-Disposition: form-data; name="longitude"
+
+-122.4194
+--WebAppBoundary
+Content-Disposition: form-data; name="description"
+
+Pothole on 5th avenue
+--WebAppBoundary--
