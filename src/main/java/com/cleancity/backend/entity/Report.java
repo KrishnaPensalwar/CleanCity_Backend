@@ -31,6 +31,21 @@ public class Report {
     @Column(nullable = false)
     private ReportStatus status;
 
+    @Column(name = "assigned_driver_id")
+    private java.util.UUID assignedDriverId;
+
+    @Column(name = "assigned_at")
+    private java.time.LocalDateTime assignedAt;
+
+    @Column(name = "completed_by_driver_id")
+    private java.util.UUID completedByDriverId;
+
+    @Column(name = "completed_at")
+    private java.time.LocalDateTime completedAt;
+
+    @Version
+    private Long version;
+
     private Double confidence;
 
     private String labels;
@@ -44,6 +59,14 @@ public class Report {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        // ensure timestamp is set (milliseconds since epoch) when not provided by client
+        if (this.timestamp == null) {
+            this.timestamp = System.currentTimeMillis();
+        }
+        // default status to PENDING if not set
+        if (this.status == null) {
+            this.status = ReportStatus.PENDING;
+        }
     }
 
     public UUID getId() {
@@ -121,6 +144,18 @@ public class Report {
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
+
+    public java.util.UUID getAssignedDriverId() { return assignedDriverId; }
+    public void setAssignedDriverId(java.util.UUID id) { this.assignedDriverId = id; }
+    public java.time.LocalDateTime getAssignedAt() { return assignedAt; }
+    public void setAssignedAt(java.time.LocalDateTime t) { this.assignedAt = t; }
+
+    public java.util.UUID getCompletedByDriverId() { return completedByDriverId; }
+    public void setCompletedByDriverId(java.util.UUID id) { this.completedByDriverId = id; }
+    public java.time.LocalDateTime getCompletedAt() { return completedAt; }
+    public void setCompletedAt(java.time.LocalDateTime t) { this.completedAt = t; }
+
+    public Long getVersion() { return version; }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;

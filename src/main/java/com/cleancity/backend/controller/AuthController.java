@@ -41,19 +41,25 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(new MessageResponse("Error: Email is already in use!"));
-        }
+    if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+        return ResponseEntity
+            .badRequest()
+            .body(new MessageResponse("Error: Email is already in use!", false));
+    }
 
-        User user = new User(signUpRequest.getName(),
-                             signUpRequest.getEmail(),
-                             encoder.encode(signUpRequest.getPassword()));
+    User user = new User(signUpRequest.getName(),
+                 signUpRequest.getEmail(),
+                 encoder.encode(signUpRequest.getPassword()));
 
-        userRepository.save(user);
+    // apply role if provided, default to ROLE_USER
+    String role = signUpRequest.getRole();
+    if (role == null || role.isBlank()) role = "ROLE_USER";
+    if (!role.startsWith("ROLE_")) role = "ROLE_" + role.toUpperCase();
+    user.setRole(role);
 
-        return ResponseEntity.ok(new MessageResponse("User created successfully"));
+    userRepository.save(user);
+
+    return ResponseEntity.ok(new MessageResponse("User created successfully", true));
     }
 
     @PostMapping("/login")
@@ -65,22 +71,38 @@ public class AuthController {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        String jwt = jwtUtils.generateJwtToken(authentication);
+    String jwt = jwtUtils.generateJwtToken(authentication);
 
         // Delete existing token if any (optional based on your session management, keeping it clean)
         refreshTokenService.deleteByUserId(userDetails.getId());
         
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
 
-        return ResponseEntity.ok(new AuthResponse(
-                jwt,
-                refreshToken.getToken(),
-                new AuthResponse.UserDto(
-                        userDetails.getId().toString(),
-                        userDetails.getName(),
-                        userDetails.getEmail()
-                )
-        ));
+    // fetch user entity to include safe profile metadata
+    java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
+    com.cleancity.backend.entity.User u = userOpt.orElse(null);
+
+    AuthResponse.UserDto userDto;
+    if (u != null) {
+        userDto = new AuthResponse.UserDto(
+            u.getId().toString(),
+            u.getName(),
+            u.getEmail(),
+            u.getRole(),
+            u.getRewardPoints(),
+            u.getIsVerified(),
+            u.getCreatedAt(),
+            u.getUpdatedAt()
+        );
+    } else {
+        userDto = new AuthResponse.UserDto(
+            userDetails.getId().toString(),
+            userDetails.getName(),
+            userDetails.getEmail()
+        );
+    }
+
+    return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken(), userDto));
     }
 
     @PostMapping("/refresh")
@@ -115,12 +137,25 @@ public class AuthController {
             return ResponseEntity.status(401).body(new MessageResponse("Unauthorized"));
         }
         
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
+    UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+    java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
+    if (userOpt.isPresent()) {
+        com.cleancity.backend.entity.User u = userOpt.get();
         return ResponseEntity.ok(new AuthResponse.UserDto(
-                userDetails.getId().toString(),
-                userDetails.getName(),
-                userDetails.getEmail()
+            u.getId().toString(),
+            u.getName(),
+            u.getEmail(),
+            u.getRole(),
+            u.getRewardPoints(),
+            u.getIsVerified(),
+            u.getCreatedAt(),
+            u.getUpdatedAt()
         ));
+    }
+    return ResponseEntity.ok(new AuthResponse.UserDto(
+        userDetails.getId().toString(),
+        userDetails.getName(),
+        userDetails.getEmail()
+    ));
     }
 }
