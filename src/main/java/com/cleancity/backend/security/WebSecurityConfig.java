@@ -60,7 +60,7 @@ public class WebSecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler).accessDeniedHandler(accessDeniedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> 
-                auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh").permitAll()
+                auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh","/api/cities/**").permitAll()
                     .anyRequest().authenticated()
             );
 
