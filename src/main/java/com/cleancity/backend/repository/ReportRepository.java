@@ -15,6 +15,7 @@ import java.util.UUID;
 @Repository
 public interface ReportRepository extends JpaRepository<Report, UUID> {
     List<Report> findByStatus(ReportStatus status);
+    List<Report> findByUserId(String userId);
 
     @Modifying
     @Query(value = "UPDATE reports SET assigned_driver_id = :driverId, assigned_at = now(), status = 'ASSIGNED', updated_at = now() WHERE id = :reportId AND status = 'PENDING' AND assigned_driver_id IS NULL", nativeQuery = true)

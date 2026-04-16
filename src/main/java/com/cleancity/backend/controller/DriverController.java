@@ -48,6 +48,29 @@ public class DriverController {
         return ResponseEntity.ok(driverService.getAssigned(user.getId()));
     }
 
+    @PostMapping("/{id}/completion-photo")
+    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
+    public ResponseEntity<?> uploadCompletionPhoto(@PathVariable("id") java.util.UUID id, @RequestParam("image") org.springframework.web.multipart.MultipartFile image, Authentication authentication) {
+        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+        try {
+            return ResponseEntity.ok(driverService.uploadCompletionPhoto(id, user.getId(), image));
+        } catch (SecurityException se) {
+            return ResponseEntity.status(403).body(java.util.Map.of("message", se.getMessage()));
+        } catch (IllegalArgumentException ie) {
+            return ResponseEntity.status(400).body(java.util.Map.of("message", ie.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(java.util.Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/profile")
+    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
+    public ResponseEntity<?> profile(Authentication authentication) {
+        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+        com.cleancity.backend.dto.DriverDto d = driverService.getDriverDto(user.getEmail(), user.getId());
+        return ResponseEntity.ok(d);
+    }
+
     @PostMapping("/{id}/complete")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> complete(@PathVariable("id") UUID id, @RequestBody java.util.Map<String,Object> body, Authentication authentication) {

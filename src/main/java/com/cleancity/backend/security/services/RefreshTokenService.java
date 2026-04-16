@@ -28,6 +28,12 @@ public class RefreshTokenService {
         return refreshTokenRepository.findByToken(token);
     }
 
+    @Transactional
+    public void deleteByToken(String token) {
+        Optional<RefreshToken> opt = refreshTokenRepository.findByToken(token);
+        opt.ifPresent(refreshTokenRepository::delete);
+    }
+
     public RefreshToken createRefreshToken(UUID userId) {
         RefreshToken refreshToken = new RefreshToken();
 

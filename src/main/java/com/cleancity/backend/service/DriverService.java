@@ -18,11 +18,15 @@ public class DriverService {
     private final ReportRepository reportRepository;
     private final ReportAssignmentRepository assignmentRepository;
     private final UserRepository userRepository;
+    private final com.cleancity.backend.repository.DriverRepository driverRepository;
+    private final com.cleancity.backend.service.S3StorageService s3StorageService;
 
-    public DriverService(ReportRepository reportRepository, ReportAssignmentRepository assignmentRepository, UserRepository userRepository) {
+    public DriverService(ReportRepository reportRepository, ReportAssignmentRepository assignmentRepository, UserRepository userRepository, com.cleancity.backend.repository.DriverRepository driverRepository, com.cleancity.backend.service.S3StorageService s3StorageService) {
         this.reportRepository = reportRepository;
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
+        this.driverRepository = driverRepository;
+        this.s3StorageService = s3StorageService;
     }
 
     public List<ReportResponse> findNearby(double lat, double lon, int radiusMeters, int limit) {
@@ -115,5 +119,83 @@ public class DriverService {
         a.setNotes(notes);
         assignmentRepository.save(a);
         return new ReportResponse(r);
+    }
+
+    @Transactional
+    public ReportResponse uploadCompletionPhoto(UUID reportId, UUID driverId, org.springframework.web.multipart.MultipartFile image) throws java.io.IOException {
+        Report r = reportRepository.findById(reportId).orElseThrow(() -> new IllegalArgumentException("Report not found"));
+        if (r.getAssignedDriverId() == null || !r.getAssignedDriverId().equals(driverId)) {
+            throw new SecurityException("You don't have permission to perform this action");
+        }
+        if (r.getStatus() != com.cleancity.backend.entity.ReportStatus.ASSIGNED) {
+            throw new IllegalStateException("Report not in ASSIGNED state");
+        }
+
+        String imageUrl = s3StorageService.uploadFile(image);
+        r.setCompletionImageUrl(imageUrl);
+        r.setCompletedAt(java.time.LocalDateTime.now());
+        r.setCompletedByDriverId(driverId);
+        r.setStatus(com.cleancity.backend.entity.ReportStatus.APPROVED);
+        reportRepository.save(r);
+
+        com.cleancity.backend.entity.ReportAssignment a = new com.cleancity.backend.entity.ReportAssignment();
+        a.setReportId(reportId);
+        a.setAction("APPROVED");
+        a.setActorDriverId(driverId);
+        a.setNotes("completion photo uploaded");
+        assignmentRepository.save(a);
+
+        // award points to uploader
+        try {
+            java.util.UUID userUuid = java.util.UUID.fromString(r.getUserId());
+            userRepository.findById(userUuid).ifPresent(user -> {
+                user.setRewardPoints(user.getRewardPoints() + 10);
+                userRepository.save(user);
+            });
+        } catch (IllegalArgumentException ex) {
+            userRepository.findByEmail(r.getUserId()).ifPresent(user -> {
+                user.setRewardPoints(user.getRewardPoints() + 10);
+                userRepository.save(user);
+            });
+        }
+
+        return new ReportResponse(r);
+    }
+
+    public com.cleancity.backend.dto.DriverDto getDriverDto(String email, java.util.UUID driverId) {
+        com.cleancity.backend.entity.Driver driverEntity = driverRepository.findByEmail(email).orElse(null);
+        if (driverEntity == null) {
+            // try by driver id
+            driverEntity = driverRepository.findById(driverId).orElse(null);
+        }
+        if (driverEntity == null) return null;
+
+        // compute stats: totalTasks, completionPercentage, streakDays, rating placeholder
+    final com.cleancity.backend.entity.Driver finalDriver = driverEntity;
+    int totalTasks = reportRepository.findAll().stream().mapToInt(r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getAssignedDriverId()) ? 1 : 0).sum();
+    int completed = reportRepository.findAll().stream().mapToInt(r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getCompletedByDriverId()) ? 1 : 0).sum();
+        int completionPercentage = totalTasks == 0 ? 0 : (int) ((completed * 100.0) / totalTasks);
+
+    com.cleancity.backend.dto.DriverDto dto = new com.cleancity.backend.dto.DriverDto(
+        driverEntity.getId().toString(),
+        driverEntity.getName(),
+        driverEntity.getEmail(),
+        "ROLE_DRIVER",
+        driverEntity.getZone(),
+        driverEntity.getTotalTasks(),
+        driverEntity.getCompletionPercentage(),
+        driverEntity.getRating(),
+        driverEntity.getStreakDays(),
+        driverEntity.getVehicleNumber(),
+        driverEntity.getVehicleType(),
+        driverEntity.getShiftTime(),
+        driverEntity.getIsActive()
+    );
+
+        // override totals with computed stats if stored values absent
+        if (dto.getTotalTasks() == null || dto.getTotalTasks() == 0) dto.setTotalTasks(totalTasks);
+        if (dto.getCompletionPercentage() == null || dto.getCompletionPercentage() == 0) dto.setCompletionPercentage(completionPercentage);
+
+        return dto;
     }
 }

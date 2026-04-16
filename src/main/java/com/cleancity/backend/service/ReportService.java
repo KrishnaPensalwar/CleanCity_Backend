@@ -106,6 +106,11 @@ public class ReportService {
         return reports.stream().map(ReportResponse::new).collect(Collectors.toList());
     }
 
+    public List<ReportResponse> getReportsByUser(String userId) {
+        List<Report> reports = reportRepository.findByUserId(userId);
+        return reports.stream().map(ReportResponse::new).collect(Collectors.toList());
+    }
+
     public ReportResponse approveReport(UUID reportId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));

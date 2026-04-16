@@ -113,8 +113,12 @@ public class AuthController {
         if (tokenOpt.isPresent()) {
             RefreshToken token = refreshTokenService.verifyExpiration(tokenOpt.get());
             User user = token.getUser();
+            // delete the old refresh token to prevent reuse
+            refreshTokenService.deleteByToken(requestRefreshToken);
+            // create and return a new refresh token (rotation)
+            RefreshToken newRefresh = refreshTokenService.createRefreshToken(user.getId());
             String jwtToken = jwtUtils.generateTokenFromEmail(user.getEmail());
-            return ResponseEntity.ok(new TokenRefreshResponse(jwtToken));
+            return ResponseEntity.ok(new TokenRefreshResponse(jwtToken, newRefresh.getToken()));
         } else {
             return ResponseEntity.badRequest().body(new MessageResponse("Refresh token is not in database!"));
         }

@@ -43,6 +43,9 @@ public class Report {
     @Column(name = "completed_at")
     private java.time.LocalDateTime completedAt;
 
+    @Column(name = "completion_image_url", length = 2000)
+    private String completionImageUrl;
+
     @Version
     private Long version;
 
@@ -154,6 +157,9 @@ public class Report {
     public void setCompletedByDriverId(java.util.UUID id) { this.completedByDriverId = id; }
     public java.time.LocalDateTime getCompletedAt() { return completedAt; }
     public void setCompletedAt(java.time.LocalDateTime t) { this.completedAt = t; }
+
+    public String getCompletionImageUrl() { return completionImageUrl; }
+    public void setCompletionImageUrl(String url) { this.completionImageUrl = url; }
 
     public Long getVersion() { return version; }
 

@@ -25,21 +25,22 @@ public class ReportController {
 
     @PostMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> uploadReport(
-            @RequestParam("image") MultipartFile image,
-            @RequestParam("userId") String userId,
-            @RequestParam("timestamp") Long timestamp,
-            @RequestParam("latitude") Double latitude,
-            @RequestParam("longitude") Double longitude,
-            @RequestParam(value = "description", required = false) String description) {
+    public ResponseEntity<?> uploadReport(@ModelAttribute com.cleancity.backend.dto.ReportRequestDto reportRequest) {
         try {
             // Verify JWT
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication == null || !authentication.isAuthenticated()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Valid JWT is required");
             }
-            
-            ReportResponse response = reportService.createReport(image, userId, timestamp, latitude, longitude, description);
+
+            ReportResponse response = reportService.createReport(
+                    reportRequest.getImage(),
+                    reportRequest.getUserId(),
+                    reportRequest.getTimestamp(),
+                    reportRequest.getLatitude(),
+                    reportRequest.getLongitude(),
+                    reportRequest.getDescription());
+
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -59,6 +60,16 @@ public class ReportController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching reports: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getMyReports(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof com.cleancity.backend.security.services.UserDetailsImpl)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+        com.cleancity.backend.security.services.UserDetailsImpl user = (com.cleancity.backend.security.services.UserDetailsImpl) authentication.getPrincipal();
+        return ResponseEntity.ok(reportService.getReportsByUser(user.getId().toString()));
     }
 
     @PostMapping("/{id}/approve")

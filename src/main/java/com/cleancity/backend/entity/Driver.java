@@ -19,6 +19,14 @@ public class Driver {
     private String vehicleNumber;
     private Boolean isActive = true;
 
+    private String zone;
+    private String vehicleType;
+    private String shiftTime;
+    private Double rating = 0.0;
+    private Integer streakDays = 0;
+    private Integer totalTasks = 0;
+    private Integer completionPercentage = 0;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -40,4 +48,18 @@ public class Driver {
     public void setVehicleNumber(String v) { this.vehicleNumber = v; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean a) { this.isActive = a; }
+    public String getZone() { return zone; }
+    public void setZone(String z) { this.zone = z; }
+    public String getVehicleType() { return vehicleType; }
+    public void setVehicleType(String t) { this.vehicleType = t; }
+    public String getShiftTime() { return shiftTime; }
+    public void setShiftTime(String s) { this.shiftTime = s; }
+    public Double getRating() { return rating; }
+    public void setRating(Double r) { this.rating = r; }
+    public Integer getStreakDays() { return streakDays; }
+    public void setStreakDays(Integer d) { this.streakDays = d; }
+    public Integer getTotalTasks() { return totalTasks; }
+    public void setTotalTasks(Integer t) { this.totalTasks = t; }
+    public Integer getCompletionPercentage() { return completionPercentage; }
+    public void setCompletionPercentage(Integer p) { this.completionPercentage = p; }
 }
