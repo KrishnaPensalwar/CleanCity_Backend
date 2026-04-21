@@ -1,92 +1,163 @@
 package com.cleancity.backend.controller;
 
-import com.cleancity.backend.dto.ReportResponse;
 import com.cleancity.backend.security.services.UserDetailsImpl;
 import com.cleancity.backend.service.DriverService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/driver/reports")
+@RequestMapping("/api/driver")
 public class DriverController {
     private final DriverService driverService;
 
-    public DriverController(DriverService driverService) { this.driverService = driverService; }
-
-    @GetMapping("/nearby")
-    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-    public ResponseEntity<?> nearby(
-            @RequestParam(name = "lat") double lat,
-            @RequestParam(name = "lon") double lon,
-            @RequestParam(name = "radiusMeters", required = false, defaultValue = "5000") int radiusMeters,
-            @RequestParam(name = "limit", required = false, defaultValue = "50") int limit) {
-        return ResponseEntity.ok(driverService.findNearby(lat, lon, radiusMeters, limit));
+    public DriverController(DriverService driverService) {
+        this.driverService = driverService;
     }
 
-    @PostMapping("/{id}/assign")
+    // =========================
+    // 🚗 DRIVER MANAGEMENT APIs (ADMIN)
+    // =========================
+
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getAllDrivers() {
+        return ResponseEntity.ok(driverService.getAllDrivers());
+    }
+
+    @GetMapping("/active")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getActiveDrivers() {
+        return ResponseEntity.ok(driverService.getActiveDrivers());
+    }
+
+    @GetMapping("/zone")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getDriversByZone(@RequestParam String zone) {
+        return ResponseEntity.ok(driverService.getDriversByZone(zone));
+    }
+
+    @GetMapping("/top")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getTopDrivers() {
+        return ResponseEntity.ok(driverService.getTopDrivers());
+    }
+
+    // =========================
+    // 📍 REPORT APIs (DRIVER + ADMIN)
+    // =========================
+
+    @GetMapping("/reports/nearby")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-    public ResponseEntity<?> assign(@PathVariable("id") UUID id, @RequestBody(required = false) java.util.Map<String,String> body, Authentication authentication) {
+    public ResponseEntity<?> nearby(
+            @RequestParam double lat,
+            @RequestParam double lon,
+            @RequestParam(defaultValue = "5000") int radiusMeters,
+            @RequestParam(defaultValue = "50") int limit) {
+
+        return ResponseEntity.ok(
+                driverService.findNearby(lat, lon, radiusMeters, limit)
+        );
+    }
+
+    @PostMapping("/reports/{id}/assign")
+    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
+    public ResponseEntity<?> assign(
+            @PathVariable UUID id,
+            @RequestBody(required = false) Map<String, String> body,
+            Authentication authentication) {
+
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
         String note = body == null ? null : body.get("note");
+
         try {
-            return ResponseEntity.ok(driverService.assignReport(id, user.getId(), note));
+            return ResponseEntity.ok(
+                    driverService.assignReport(id, user.getId(), note)
+            );
         } catch (IllegalStateException e) {
-            return ResponseEntity.status(409).body(java.util.Map.of("message", e.getMessage()));
+            return ResponseEntity.status(409)
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 
-    @GetMapping("/assigned")
+    @GetMapping("/reports/assigned")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> assigned(Authentication authentication) {
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-        return ResponseEntity.ok(driverService.getAssigned(user.getId()));
+        return ResponseEntity.ok(
+                driverService.getAssigned(user.getId())
+        );
     }
 
-    @PostMapping("/{id}/completion-photo")
+    @PostMapping("/reports/{id}/completion-photo")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-    public ResponseEntity<?> uploadCompletionPhoto(@PathVariable("id") java.util.UUID id, @RequestParam("image") org.springframework.web.multipart.MultipartFile image, Authentication authentication) {
+    public ResponseEntity<?> uploadCompletionPhoto(
+            @PathVariable UUID id,
+            @RequestParam("image") org.springframework.web.multipart.MultipartFile image,
+            Authentication authentication) {
+
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+
         try {
-            return ResponseEntity.ok(driverService.uploadCompletionPhoto(id, user.getId(), image));
+            return ResponseEntity.ok(
+                    driverService.uploadCompletionPhoto(id, user.getId(), image)
+            );
         } catch (SecurityException se) {
-            return ResponseEntity.status(403).body(java.util.Map.of("message", se.getMessage()));
+            return ResponseEntity.status(403)
+                    .body(Map.of("message", se.getMessage()));
         } catch (IllegalArgumentException ie) {
-            return ResponseEntity.status(400).body(java.util.Map.of("message", ie.getMessage()));
+            return ResponseEntity.status(400)
+                    .body(Map.of("message", ie.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(java.util.Map.of("message", e.getMessage()));
+            return ResponseEntity.status(500)
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 
-    @GetMapping("/profile")
+    @GetMapping("/reports/profile")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> profile(Authentication authentication) {
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-        com.cleancity.backend.dto.DriverDto d = driverService.getDriverDto(user.getEmail(), user.getId());
-        return ResponseEntity.ok(d);
+
+        return ResponseEntity.ok(
+                driverService.getDriverDto(user.getEmail(), user.getId())
+        );
     }
 
-    @PostMapping("/{id}/complete")
+    @PostMapping("/reports/{id}/complete")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-    public ResponseEntity<?> complete(@PathVariable("id") UUID id, @RequestBody java.util.Map<String,Object> body, Authentication authentication) {
+    public ResponseEntity<?> complete(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+
         String action = (String) body.getOrDefault("action", "APPROVED");
         String notes = (String) body.getOrDefault("notes", null);
+
         try {
-            // drivers are not allowed to APPROVE; only admins can approve after manual review
             if ("APPROVED".equalsIgnoreCase(action)) {
-                return ResponseEntity.status(403).body(java.util.Map.of("message", "Drivers are not allowed to approve reports; please request admin approval."));
+                return ResponseEntity.status(403).body(
+                        Map.of("message",
+                                "Drivers cannot approve reports. Request admin approval.")
+                );
             }
-            return ResponseEntity.ok(driverService.completeReport(id, user.getId(), action, notes));
+
+            return ResponseEntity.ok(
+                    driverService.completeReport(id, user.getId(), action, notes)
+            );
+
         } catch (SecurityException e) {
-            return ResponseEntity.status(403).body(java.util.Map.of("message", e.getMessage()));
+            return ResponseEntity.status(403)
+                    .body(Map.of("message", e.getMessage()));
         } catch (IllegalStateException e) {
-            return ResponseEntity.status(409).body(java.util.Map.of("message", e.getMessage()));
+            return ResponseEntity.status(409)
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 }

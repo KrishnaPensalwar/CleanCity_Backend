@@ -1,6 +1,7 @@
 package com.cleancity.backend.service;
 
 import com.cleancity.backend.dto.ReportResponse;
+import com.cleancity.backend.entity.Driver;
 import com.cleancity.backend.entity.Report;
 import com.cleancity.backend.repository.ReportAssignmentRepository;
 import com.cleancity.backend.repository.ReportRepository;
@@ -21,7 +22,9 @@ public class DriverService {
     private final com.cleancity.backend.repository.DriverRepository driverRepository;
     private final com.cleancity.backend.service.S3StorageService s3StorageService;
 
-    public DriverService(ReportRepository reportRepository, ReportAssignmentRepository assignmentRepository, UserRepository userRepository, com.cleancity.backend.repository.DriverRepository driverRepository, com.cleancity.backend.service.S3StorageService s3StorageService) {
+    public DriverService(ReportRepository reportRepository, ReportAssignmentRepository assignmentRepository,
+            UserRepository userRepository, com.cleancity.backend.repository.DriverRepository driverRepository,
+            com.cleancity.backend.service.S3StorageService s3StorageService) {
         this.reportRepository = reportRepository;
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
@@ -47,9 +50,11 @@ public class DriverService {
             Double longitude = ((Number) r[2]).doubleValue();
             Double distance = ((Number) r[3]).doubleValue();
             Report rep = reportRepository.findById(id).orElse(null);
-            if (rep == null) continue;
+            if (rep == null)
+                continue;
             ReportResponse rr = new ReportResponse(rep);
-            // add distance via reflection? ReportResponse doesn't have distance; client can compute. skipping.
+            // add distance via reflection? ReportResponse doesn't have distance; client can
+            // compute. skipping.
             out.add(rr);
         }
         return out;
@@ -58,8 +63,10 @@ public class DriverService {
     @Transactional
     public ReportResponse assignReport(UUID reportId, UUID driverId, String note) {
         int updated = reportRepository.assignIfPending(reportId, driverId);
-        if (updated == 0) throw new IllegalStateException("Report already assigned or not available");
-        Report r = reportRepository.findById(reportId).orElseThrow(() -> new IllegalArgumentException("Report not found"));
+        if (updated == 0)
+            throw new IllegalStateException("Report already assigned or not available");
+        Report r = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
         // create assignment audit
         com.cleancity.backend.entity.ReportAssignment a = new com.cleancity.backend.entity.ReportAssignment();
         a.setReportId(reportId);
@@ -74,14 +81,16 @@ public class DriverService {
         List<Report> list = reportRepository.findAll();
         List<ReportResponse> out = new ArrayList<>();
         for (Report r : list) {
-            if (driverId.equals(r.getAssignedDriverId())) out.add(new ReportResponse(r));
+            if (driverId.equals(r.getAssignedDriverId()))
+                out.add(new ReportResponse(r));
         }
         return out;
     }
 
     @Transactional
     public ReportResponse completeReport(UUID reportId, UUID driverId, String action, String notes) {
-        Report r = reportRepository.findById(reportId).orElseThrow(() -> new IllegalArgumentException("Report not found"));
+        Report r = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
         if (r.getAssignedDriverId() == null || !r.getAssignedDriverId().equals(driverId)) {
             throw new SecurityException("You don't have permission to perform this action");
         }
@@ -122,8 +131,10 @@ public class DriverService {
     }
 
     @Transactional
-    public ReportResponse uploadCompletionPhoto(UUID reportId, UUID driverId, org.springframework.web.multipart.MultipartFile image) throws java.io.IOException {
-        Report r = reportRepository.findById(reportId).orElseThrow(() -> new IllegalArgumentException("Report not found"));
+    public ReportResponse uploadCompletionPhoto(UUID reportId, UUID driverId,
+            org.springframework.web.multipart.MultipartFile image) throws java.io.IOException {
+        Report r = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
         if (r.getAssignedDriverId() == null || !r.getAssignedDriverId().equals(driverId)) {
             throw new SecurityException("You don't have permission to perform this action");
         }
@@ -131,20 +142,20 @@ public class DriverService {
             throw new IllegalStateException("Report not in ASSIGNED state");
         }
 
-    String imageUrl = s3StorageService.uploadFile(image);
-    r.setCompletionImageUrl(imageUrl);
-    r.setCompletedAt(java.time.LocalDateTime.now());
-    r.setCompletedByDriverId(driverId);
-    // mark for admin review; admin will approve/reject after manual verification
-    r.setStatus(com.cleancity.backend.entity.ReportStatus.AWAITING_REVIEW);
-    reportRepository.save(r);
+        String imageUrl = s3StorageService.uploadFile(image);
+        r.setCompletionImageUrl(imageUrl);
+        r.setCompletedAt(java.time.LocalDateTime.now());
+        r.setCompletedByDriverId(driverId);
+        // mark for admin review; admin will approve/reject after manual verification
+        r.setStatus(com.cleancity.backend.entity.ReportStatus.AWAITING_REVIEW);
+        reportRepository.save(r);
 
-    com.cleancity.backend.entity.ReportAssignment a = new com.cleancity.backend.entity.ReportAssignment();
-    a.setReportId(reportId);
-    a.setAction("COMPLETION_UPLOADED");
-    a.setActorDriverId(driverId);
-    a.setNotes("completion photo uploaded, awaiting admin review");
-    assignmentRepository.save(a);
+        com.cleancity.backend.entity.ReportAssignment a = new com.cleancity.backend.entity.ReportAssignment();
+        a.setReportId(reportId);
+        a.setAction("COMPLETION_UPLOADED");
+        a.setActorDriverId(driverId);
+        a.setNotes("completion photo uploaded, awaiting admin review");
+        assignmentRepository.save(a);
 
         return new ReportResponse(r);
     }
@@ -155,34 +166,62 @@ public class DriverService {
             // try by driver id
             driverEntity = driverRepository.findById(driverId).orElse(null);
         }
-        if (driverEntity == null) return null;
+        if (driverEntity == null)
+            return null;
 
-        // compute stats: totalTasks, completionPercentage, streakDays, rating placeholder
-    final com.cleancity.backend.entity.Driver finalDriver = driverEntity;
-    int totalTasks = reportRepository.findAll().stream().mapToInt(r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getAssignedDriverId()) ? 1 : 0).sum();
-    int completed = reportRepository.findAll().stream().mapToInt(r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getCompletedByDriverId()) ? 1 : 0).sum();
+        // compute stats: totalTasks, completionPercentage, streakDays, rating
+        // placeholder
+        final com.cleancity.backend.entity.Driver finalDriver = driverEntity;
+        int totalTasks = reportRepository.findAll().stream()
+                .mapToInt(
+                        r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getAssignedDriverId()) ? 1 : 0)
+                .sum();
+        int completed = reportRepository.findAll().stream().mapToInt(
+                r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getCompletedByDriverId()) ? 1 : 0)
+                .sum();
         int completionPercentage = totalTasks == 0 ? 0 : (int) ((completed * 100.0) / totalTasks);
 
-    com.cleancity.backend.dto.DriverDto dto = new com.cleancity.backend.dto.DriverDto(
-        driverEntity.getId().toString(),
-        driverEntity.getName(),
-        driverEntity.getEmail(),
-        "ROLE_DRIVER",
-        driverEntity.getZone(),
-        driverEntity.getTotalTasks(),
-        driverEntity.getCompletionPercentage(),
-        driverEntity.getRating(),
-        driverEntity.getStreakDays(),
-        driverEntity.getVehicleNumber(),
-        driverEntity.getVehicleType(),
-        driverEntity.getShiftTime(),
-        driverEntity.getIsActive()
-    );
+        com.cleancity.backend.dto.DriverDto dto = new com.cleancity.backend.dto.DriverDto(
+                driverEntity.getId().toString(),
+                driverEntity.getName(),
+                driverEntity.getEmail(),
+                "ROLE_DRIVER",
+                driverEntity.getZone(),
+                driverEntity.getTotalTasks(),
+                driverEntity.getCompletionPercentage(),
+                driverEntity.getRating(),
+                driverEntity.getStreakDays(),
+                driverEntity.getVehicleNumber(),
+                driverEntity.getVehicleType(),
+                driverEntity.getShiftTime(),
+                driverEntity.getIsActive());
 
         // override totals with computed stats if stored values absent
-        if (dto.getTotalTasks() == null || dto.getTotalTasks() == 0) dto.setTotalTasks(totalTasks);
-        if (dto.getCompletionPercentage() == null || dto.getCompletionPercentage() == 0) dto.setCompletionPercentage(completionPercentage);
+        if (dto.getTotalTasks() == null || dto.getTotalTasks() == 0)
+            dto.setTotalTasks(totalTasks);
+        if (dto.getCompletionPercentage() == null || dto.getCompletionPercentage() == 0)
+            dto.setCompletionPercentage(completionPercentage);
 
         return dto;
+    }
+
+    // ✅ Get all drivers
+    public List<Driver> getAllDrivers() {
+        return driverRepository.findAll();
+    }
+
+    // ✅ Only active drivers
+    public List<Driver> getActiveDrivers() {
+        return driverRepository.findByIsActiveTrue();
+    }
+
+    // ✅ Filter by zone
+    public List<Driver> getDriversByZone(String zone) {
+        return driverRepository.findByZone(zone);
+    }
+
+    // ✅ Top rated drivers
+    public List<Driver> getTopDrivers() {
+        return driverRepository.findTop10ByOrderByRatingDesc();
     }
 }

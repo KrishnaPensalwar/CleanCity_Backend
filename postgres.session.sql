@@ -8,11 +8,12 @@
 --   AND assigned_driver_id IS NULL
 -- RETURNING id, assigned_driver_id, status, assigned_at, updated_at;
 
-SELECT * from reports;
+SELECT * from users;
+
 
 -- SELECT column_name, data_type, is_nullable, column_default
 -- FROM information_schema.columns
--- WHERE table_name = 'report_assignments';
+-- WHERE table_name = 'drivers';
 
 -- SELECT conname, pg_get_constraintdef(oid)
 -- FROM pg_constraint
