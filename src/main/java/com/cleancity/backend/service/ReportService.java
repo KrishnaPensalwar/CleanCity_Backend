@@ -114,15 +114,18 @@ public class ReportService {
     public ReportResponse approveReport(UUID reportId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
-        
         if (report.getStatus() == ReportStatus.APPROVED) {
             throw new IllegalArgumentException("Report is already approved");
+        }
+
+        if (report.getStatus() != ReportStatus.AWAITING_REVIEW) {
+            throw new IllegalArgumentException("Report is not awaiting review and cannot be approved");
         }
 
         report.setStatus(ReportStatus.APPROVED);
         report = reportRepository.save(report);
 
-        // Add 10 reward points to the user
+        // Add 10 reward points to the user (award upon admin approval)
         try {
             UUID userUuid = UUID.fromString(report.getUserId());
             userRepository.findById(userUuid).ifPresent(user -> {
@@ -144,10 +147,10 @@ public class ReportService {
     public ReportResponse rejectReport(UUID reportId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+    // Admins can reject reports in any state (PENDING, AWAITING_REVIEW, ASSIGNED)
+    report.setStatus(ReportStatus.REJECTED);
+    report = reportRepository.save(report);
         
-        report.setStatus(ReportStatus.REJECTED);
-        report = reportRepository.save(report);
-        
-        return new ReportResponse(report);
+    return new ReportResponse(report);
     }
 }

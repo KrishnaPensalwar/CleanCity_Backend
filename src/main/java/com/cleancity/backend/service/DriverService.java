@@ -131,33 +131,20 @@ public class DriverService {
             throw new IllegalStateException("Report not in ASSIGNED state");
         }
 
-        String imageUrl = s3StorageService.uploadFile(image);
-        r.setCompletionImageUrl(imageUrl);
-        r.setCompletedAt(java.time.LocalDateTime.now());
-        r.setCompletedByDriverId(driverId);
-        r.setStatus(com.cleancity.backend.entity.ReportStatus.APPROVED);
-        reportRepository.save(r);
+    String imageUrl = s3StorageService.uploadFile(image);
+    r.setCompletionImageUrl(imageUrl);
+    r.setCompletedAt(java.time.LocalDateTime.now());
+    r.setCompletedByDriverId(driverId);
+    // mark for admin review; admin will approve/reject after manual verification
+    r.setStatus(com.cleancity.backend.entity.ReportStatus.AWAITING_REVIEW);
+    reportRepository.save(r);
 
-        com.cleancity.backend.entity.ReportAssignment a = new com.cleancity.backend.entity.ReportAssignment();
-        a.setReportId(reportId);
-        a.setAction("APPROVED");
-        a.setActorDriverId(driverId);
-        a.setNotes("completion photo uploaded");
-        assignmentRepository.save(a);
-
-        // award points to uploader
-        try {
-            java.util.UUID userUuid = java.util.UUID.fromString(r.getUserId());
-            userRepository.findById(userUuid).ifPresent(user -> {
-                user.setRewardPoints(user.getRewardPoints() + 10);
-                userRepository.save(user);
-            });
-        } catch (IllegalArgumentException ex) {
-            userRepository.findByEmail(r.getUserId()).ifPresent(user -> {
-                user.setRewardPoints(user.getRewardPoints() + 10);
-                userRepository.save(user);
-            });
-        }
+    com.cleancity.backend.entity.ReportAssignment a = new com.cleancity.backend.entity.ReportAssignment();
+    a.setReportId(reportId);
+    a.setAction("COMPLETION_UPLOADED");
+    a.setActorDriverId(driverId);
+    a.setNotes("completion photo uploaded, awaiting admin review");
+    assignmentRepository.save(a);
 
         return new ReportResponse(r);
     }

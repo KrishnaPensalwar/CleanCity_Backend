@@ -78,6 +78,10 @@ public class DriverController {
         String action = (String) body.getOrDefault("action", "APPROVED");
         String notes = (String) body.getOrDefault("notes", null);
         try {
+            // drivers are not allowed to APPROVE; only admins can approve after manual review
+            if ("APPROVED".equalsIgnoreCase(action)) {
+                return ResponseEntity.status(403).body(java.util.Map.of("message", "Drivers are not allowed to approve reports; please request admin approval."));
+            }
             return ResponseEntity.ok(driverService.completeReport(id, user.getId(), action, notes));
         } catch (SecurityException e) {
             return ResponseEntity.status(403).body(java.util.Map.of("message", e.getMessage()));
