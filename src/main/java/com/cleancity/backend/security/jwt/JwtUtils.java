@@ -20,7 +20,7 @@ public class JwtUtils {
     @Value("${app.jwtSecret:4f4d2f8016467389a9f4c3ecf52d5b62b083b4b60098f489f6b98ea6fbd4b6dc}")
     private String jwtSecret;
 
-    @Value("${app.jwtExpirationMs:900000}")
+    @Value("${app.jwtExpirationMs:9000000}")
     private int jwtExpirationMs;
 
     @org.springframework.beans.factory.annotation.Autowired

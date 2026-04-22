@@ -8,6 +8,7 @@ import com.cleancity.backend.entity.User;
 import com.cleancity.backend.repository.ReportRepository;
 import com.cleancity.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -23,7 +24,8 @@ public class ReportService {
     private final S3StorageService s3StorageService;
     private final MLValidationService mlValidationService;
 
-    public ReportService(ReportRepository reportRepository, UserRepository userRepository, S3StorageService s3StorageService,
+    public ReportService(ReportRepository reportRepository, UserRepository userRepository,
+            S3StorageService s3StorageService,
             MLValidationService mlValidationService) {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
@@ -111,21 +113,39 @@ public class ReportService {
         return reports.stream().map(ReportResponse::new).collect(Collectors.toList());
     }
 
-    public ReportResponse approveReport(UUID reportId) {
-        Report report = reportRepository.findById(reportId)
+    public ReportResponse approveReport(@PathVariable("id") UUID id) {
+        Report report = reportRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
-        if (report.getStatus() == ReportStatus.APPROVED) {
-            throw new IllegalArgumentException("Report is already approved");
-        }
 
+        // ✅ Only allow approval when awaiting admin review
         if (report.getStatus() != ReportStatus.AWAITING_REVIEW) {
-            throw new IllegalArgumentException("Report is not awaiting review and cannot be approved");
+            throw new IllegalArgumentException("Report is not awaiting review");
         }
 
+        // ✅ Ensure driver has uploaded completion proof
+        if (report.getCompletionImageUrl() == null) {
+            throw new IllegalArgumentException("Completion image is missing. Cannot approve.");
+        }
+
+        // ==============================
+        // 🚧 FUTURE: IMAGE VALIDATION
+        // ==============================
+        /*
+         * MLValidationResult result = mlValidationService.compareImages(
+         * report.getImageUrl(),
+         * report.getCompletionImageUrl()
+         * );
+         * 
+         * if (result.getConfidence() < 0.6) {
+         * throw new IllegalArgumentException("Images do not match. Cannot approve.");
+         * }
+         */
+
+        // ✅ Manual approval
         report.setStatus(ReportStatus.APPROVED);
         report = reportRepository.save(report);
 
-        // Add 10 reward points to the user (award upon admin approval)
+        // ✅ Reward user
         try {
             UUID userUuid = UUID.fromString(report.getUserId());
             userRepository.findById(userUuid).ifPresent(user -> {
@@ -133,24 +153,26 @@ public class ReportService {
                 userRepository.save(user);
             });
         } catch (IllegalArgumentException e) {
-            // If userId is not a valid UUID, try to find user by email
             userRepository.findByEmail(report.getUserId()).ifPresent(user -> {
                 user.setRewardPoints(user.getRewardPoints() + 10);
                 userRepository.save(user);
             });
-            System.err.println("Could not parse userId as UUID, attempted email lookup: " + report.getUserId());
         }
 
         return new ReportResponse(report);
     }
 
-    public ReportResponse rejectReport(UUID reportId) {
-        Report report = reportRepository.findById(reportId)
+    public ReportResponse rejectReport(@PathVariable("id") UUID id) {
+        Report report = reportRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
-    // Admins can reject reports in any state (PENDING, AWAITING_REVIEW, ASSIGNED)
-    report.setStatus(ReportStatus.REJECTED);
-    report = reportRepository.save(report);
-        
-    return new ReportResponse(report);
+
+        if (report.getStatus() == ReportStatus.APPROVED) {
+            throw new IllegalArgumentException("Approved report cannot be rejected");
+        }
+
+        report.setStatus(ReportStatus.REJECTED);
+        report = reportRepository.save(report);
+
+        return new ReportResponse(report);
     }
 }

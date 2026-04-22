@@ -8,7 +8,7 @@
 --   AND assigned_driver_id IS NULL
 -- RETURNING id, assigned_driver_id, status, assigned_at, updated_at;
 
-SELECT * from users;
+SELECT * from report_assignments;
 
 
 -- SELECT column_name, data_type, is_nullable, column_default

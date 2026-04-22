@@ -65,11 +65,11 @@ public class DriverController {
     }
 
     @PostMapping("/reports/{id}/assign")
-    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-    public ResponseEntity<?> assign(
-            @PathVariable UUID id,
-            @RequestBody(required = false) Map<String, String> body,
-            Authentication authentication) {
+@PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
+public ResponseEntity<?> assign(
+        @PathVariable("id") UUID id,
+        @RequestBody(required = false) Map<String, String> body,
+        Authentication authentication) {
 
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
         String note = body == null ? null : body.get("note");
@@ -92,31 +92,30 @@ public class DriverController {
                 driverService.getAssigned(user.getId())
         );
     }
+@PostMapping("/reports/{id}/completion-photo")
+@PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
+public ResponseEntity<?> uploadCompletionPhoto(
+        @PathVariable("id") UUID id,
+        @RequestParam("image") org.springframework.web.multipart.MultipartFile image,
+        Authentication authentication) {
 
-    @PostMapping("/reports/{id}/completion-photo")
-    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-    public ResponseEntity<?> uploadCompletionPhoto(
-            @PathVariable UUID id,
-            @RequestParam("image") org.springframework.web.multipart.MultipartFile image,
-            Authentication authentication) {
+    UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
 
-        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-
-        try {
-            return ResponseEntity.ok(
-                    driverService.uploadCompletionPhoto(id, user.getId(), image)
-            );
-        } catch (SecurityException se) {
-            return ResponseEntity.status(403)
-                    .body(Map.of("message", se.getMessage()));
-        } catch (IllegalArgumentException ie) {
-            return ResponseEntity.status(400)
-                    .body(Map.of("message", ie.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(500)
-                    .body(Map.of("message", e.getMessage()));
-        }
+    try {
+        return ResponseEntity.ok(
+                driverService.uploadCompletionPhoto(id, user.getId(), image)
+        );
+    } catch (SecurityException se) {
+        return ResponseEntity.status(403)
+                .body(Map.of("message", se.getMessage()));
+    } catch (IllegalArgumentException ie) {
+        return ResponseEntity.status(400)
+                .body(Map.of("message", ie.getMessage()));
+    } catch (Exception e) {
+        return ResponseEntity.status(500)
+                .body(Map.of("message", e.getMessage()));
     }
+}
 
     @GetMapping("/reports/profile")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
@@ -129,9 +128,8 @@ public class DriverController {
     }
 
     @PostMapping("/reports/{id}/complete")
-    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-    public ResponseEntity<?> complete(
-            @PathVariable UUID id,
+public ResponseEntity<?> complete(
+        @PathVariable("id") UUID id,
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
 
