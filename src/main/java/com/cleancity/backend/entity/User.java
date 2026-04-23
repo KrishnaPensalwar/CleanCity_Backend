@@ -40,6 +40,12 @@ public class User {
     @Column(name = "role", nullable = false)
     private String role = "ROLE_USER";
 
+    @Column(name = "reports_filed", nullable = false)
+    private Integer reportsFiled = 0;
+
+    @Column(name = "reports_resolved", nullable = false)
+    private Integer reportsResolved = 0;
+
     public User() {}
 
     public User(String name, String email, String passwordHash) {
@@ -67,4 +73,9 @@ public class User {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public Integer getRewardPoints() { return rewardPoints; }
     public void setRewardPoints(Integer rewardPoints) { this.rewardPoints = rewardPoints; }
+    public Integer getReportsFiled() { return this.reportsFiled; }
+    public Integer getReportsResolved() { return this.reportsResolved; }
+
+    public void setReportsFiled(Integer reportsFiled) { this.reportsFiled = reportsFiled; }
+    public void setReportsResolved(Integer reportsResolved) { this.reportsResolved = reportsResolved; }
 }

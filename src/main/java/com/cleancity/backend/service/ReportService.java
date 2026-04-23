@@ -68,6 +68,20 @@ public class ReportService {
 
         Report savedReport = reportRepository.save(report);
 
+        // ✅ Increment reportsFiled for user
+        try {
+            UUID userUuid = UUID.fromString(userId);
+            userRepository.findById(userUuid).ifPresent(user -> {
+                user.setReportsFiled(user.getReportsFiled() + 1);
+                userRepository.save(user);
+            });
+        } catch (IllegalArgumentException e) {
+            userRepository.findByEmail(userId).ifPresent(user -> {
+                user.setReportsFiled(user.getReportsFiled() + 1);
+                userRepository.save(user);
+            });
+        }
+
         return new ReportResponse(savedReport);
     }
 
@@ -145,16 +159,18 @@ public class ReportService {
         report.setStatus(ReportStatus.APPROVED);
         report = reportRepository.save(report);
 
-        // ✅ Reward user
+        // ✅ Reward user and increment reportsResolved
         try {
             UUID userUuid = UUID.fromString(report.getUserId());
             userRepository.findById(userUuid).ifPresent(user -> {
                 user.setRewardPoints(user.getRewardPoints() + 10);
+                user.setReportsResolved(user.getReportsResolved() + 1);
                 userRepository.save(user);
             });
         } catch (IllegalArgumentException e) {
             userRepository.findByEmail(report.getUserId()).ifPresent(user -> {
                 user.setRewardPoints(user.getRewardPoints() + 10);
+                user.setReportsResolved(user.getReportsResolved() + 1);
                 userRepository.save(user);
             });
         }
@@ -172,6 +188,20 @@ public class ReportService {
 
         report.setStatus(ReportStatus.REJECTED);
         report = reportRepository.save(report);
+
+        // ✅ Increment reportsResolved for user
+        try {
+            UUID userUuid = UUID.fromString(report.getUserId());
+            userRepository.findById(userUuid).ifPresent(user -> {
+                user.setReportsResolved(user.getReportsResolved() + 1);
+                userRepository.save(user);
+            });
+        } catch (IllegalArgumentException e) {
+            userRepository.findByEmail(report.getUserId()).ifPresent(user -> {
+                user.setReportsResolved(user.getReportsResolved() + 1);
+                userRepository.save(user);
+            });
+        }
 
         return new ReportResponse(report);
     }

@@ -56,6 +56,8 @@ public class AuthController {
     if (role == null || role.isBlank()) role = "ROLE_USER";
     if (!role.startsWith("ROLE_")) role = "ROLE_" + role.toUpperCase();
     user.setRole(role);
+    user.setReportsFiled(0);
+    user.setReportsResolved(0);
 
     userRepository.save(user);
 
@@ -82,9 +84,9 @@ public class AuthController {
     java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
     com.cleancity.backend.entity.User u = userOpt.orElse(null);
 
-    AuthResponse.UserDto userDto;
+    UserDto userDto;
     if (u != null) {
-        userDto = new AuthResponse.UserDto(
+        userDto = new UserDto(
             u.getId().toString(),
             u.getName(),
             u.getEmail(),
@@ -92,10 +94,12 @@ public class AuthController {
             u.getRewardPoints(),
             u.getIsVerified(),
             u.getCreatedAt(),
-            u.getUpdatedAt()
+            u.getUpdatedAt(),
+            u.getReportsFiled(),
+            u.getReportsResolved()
         );
     } else {
-        userDto = new AuthResponse.UserDto(
+        userDto = new UserDto(
             userDetails.getId().toString(),
             userDetails.getName(),
             userDetails.getEmail()
@@ -145,7 +149,7 @@ public class AuthController {
     java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
     if (userOpt.isPresent()) {
         com.cleancity.backend.entity.User u = userOpt.get();
-        return ResponseEntity.ok(new AuthResponse.UserDto(
+        return ResponseEntity.ok(new UserDto(
             u.getId().toString(),
             u.getName(),
             u.getEmail(),
@@ -153,10 +157,12 @@ public class AuthController {
             u.getRewardPoints(),
             u.getIsVerified(),
             u.getCreatedAt(),
-            u.getUpdatedAt()
+            u.getUpdatedAt(),
+            u.getReportsFiled(),
+            u.getReportsResolved()
         ));
     }
-    return ResponseEntity.ok(new AuthResponse.UserDto(
+    return ResponseEntity.ok(new UserDto(
         userDetails.getId().toString(),
         userDetails.getName(),
         userDetails.getEmail()
