@@ -66,17 +66,43 @@ public class DriverController {
 
     @PostMapping("/reports/{id}/assign")
 @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-public ResponseEntity<?> assign(
-        @PathVariable("id") UUID id,
+    public ResponseEntity<?> assign(
+        @PathVariable("id") String idStr,
         @RequestBody(required = false) Map<String, String> body,
         Authentication authentication) {
+
+        UUID id;
+        try {
+            id = UUID.fromString(idStr);
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", "invalid report id"));
+        }
 
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
         String note = body == null ? null : body.get("note");
 
+        // determine driverId: admins may pass driverId in body, drivers assign to themselves
+        UUID driverId;
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
+
+        if (isAdmin) {
+            if (body == null || body.get("driverId") == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "driverId required for admin assignment"));
+            }
+            String driverIdStr = body.get("driverId");
+            try {
+                driverId = UUID.fromString(driverIdStr);
+            } catch (IllegalArgumentException iae) {
+                return ResponseEntity.badRequest().body(Map.of("message", "invalid driver id"));
+            }
+        } else {
+            driverId = user.getId();
+        }
+
         try {
             return ResponseEntity.ok(
-                    driverService.assignReport(id, user.getId(), note)
+                    driverService.assignReport(id, driverId, note)
             );
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409)
@@ -94,10 +120,17 @@ public ResponseEntity<?> assign(
     }
 @PostMapping("/reports/{id}/completion-photo")
 @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
-public ResponseEntity<?> uploadCompletionPhoto(
-        @PathVariable("id") UUID id,
+    public ResponseEntity<?> uploadCompletionPhoto(
+        @PathVariable("id") String idStr,
         @RequestParam("image") org.springframework.web.multipart.MultipartFile image,
         Authentication authentication) {
+
+    UUID id;
+    try {
+        id = UUID.fromString(idStr);
+    } catch (IllegalArgumentException iae) {
+        return ResponseEntity.badRequest().body(Map.of("message", "invalid report id"));
+    }
 
     UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
 
@@ -128,10 +161,17 @@ public ResponseEntity<?> uploadCompletionPhoto(
     }
 
     @PostMapping("/reports/{id}/complete")
-public ResponseEntity<?> complete(
-        @PathVariable("id") UUID id,
+    public ResponseEntity<?> complete(
+        @PathVariable("id") String idStr,
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
+
+        UUID id;
+        try {
+            id = UUID.fromString(idStr);
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body(Map.of("message", "invalid report id"));
+        }
 
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
 

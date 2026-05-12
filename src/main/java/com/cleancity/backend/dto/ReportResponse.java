@@ -18,6 +18,7 @@ public class ReportResponse {
     // private String labels;
     private String description;
     private LocalDateTime createdAt;
+    private String completionImageUrl;
 
     public ReportResponse(Report report) {
         this.id = report.getId();
@@ -31,6 +32,7 @@ public class ReportResponse {
         // this.labels = report.getLabels();
         this.description = report.getDescription();
         this.createdAt = report.getCreatedAt();
+        this.completionImageUrl = report.getCompletionImageUrl();
     }
 
     public UUID getId() {
@@ -119,5 +121,13 @@ public class ReportResponse {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getCompletionImageUrl() {
+        return completionImageUrl;
+    }
+
+    public void setCompletionImageUrl(String completionImageUrl) {
+        this.completionImageUrl = completionImageUrl;
     }
 }

@@ -8,7 +8,7 @@
 --   AND assigned_driver_id IS NULL
 -- RETURNING id, assigned_driver_id, status, assigned_at, updated_at;
 
-SELECT * from users;
+SELECT * from reports;
 
 
 -- ALTER TABLE users ADD COLUMN reports_filed INTEGER DEFAULT 0 NOT NULL;
