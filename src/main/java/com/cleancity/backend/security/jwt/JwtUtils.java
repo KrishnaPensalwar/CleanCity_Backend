@@ -30,7 +30,7 @@ public class JwtUtils {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
 
     return Jwts.builder()
-        .setSubject((userPrincipal.getEmail()))
+        .setSubject(userPrincipal.getEmail())
         .claim("roles", userPrincipal.getRole())
         .setIssuedAt(new Date())
         .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
@@ -44,7 +44,7 @@ public class JwtUtils {
             User user = userRepository.findByEmail(email).orElse(null);
             if (user != null) {
                 return Jwts.builder().setSubject(email).claim("roles", user.getRole()).setIssuedAt(new Date())
-                        .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs)).signWith(key(), SignatureAlgorithm.HS256)
+                        .setExpiration(new Date(new Date().getTime() + jwtExpirationMs)).signWith(key(), SignatureAlgorithm.HS256)
                         .compact();
             }
         } catch (Exception e) {
