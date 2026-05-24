@@ -272,6 +272,35 @@ public class ReportService {
                 user.setReportsResolved(resolved + 1);
 
                 userRepository.save(user);
+
+                try {
+
+                    userDeviceService
+                            .findActiveTokensForUser(user.getAccountId().toString())
+                            .forEach(token -> {
+
+                                try {
+
+                                    fcmService.sendNotification(
+                                            token,
+                                            "Complaint Approved",
+                                            "Your complaint has been approved.",
+                                            java.util.Map.of(
+                                                    "reportId",
+                                                    finalReport.getId().toString()
+                                            )
+                                    );
+
+                                } catch (Exception ex) {
+
+                                    // optional invalid token handling
+                                }
+                            });
+
+                } catch (Exception ex) {
+
+                    // ignore notification errors
+                }
             });
         }
 
