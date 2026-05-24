@@ -1,8 +1,10 @@
 package com.cleancity.backend.controller;
 
 import com.cleancity.backend.dto.*;
+import com.cleancity.backend.entity.Driver;
 import com.cleancity.backend.entity.RefreshToken;
 import com.cleancity.backend.entity.User;
+import com.cleancity.backend.repository.DriverRepository;
 import com.cleancity.backend.repository.UserRepository;
 import com.cleancity.backend.security.jwt.JwtUtils;
 import com.cleancity.backend.security.services.RefreshTokenService;
@@ -39,29 +41,76 @@ public class AuthController {
     @Autowired
     RefreshTokenService refreshTokenService;
 
+    @Autowired
+    private DriverRepository driverRepository;
+
     @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-    if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-        return ResponseEntity
-            .badRequest()
-            .body(new MessageResponse("Error: Email is already in use!", false));
-    }
+    public ResponseEntity<?> registerUser(
+            @Valid @RequestBody SignupRequest signUpRequest) {
 
-    User user = new User(signUpRequest.getName(),
-                 signUpRequest.getEmail(),
-                 encoder.encode(signUpRequest.getPassword()));
+        String role = signUpRequest.getRole();
 
-    // apply role if provided, default to ROLE_USER
-    String role = signUpRequest.getRole();
-    if (role == null || role.isBlank()) role = "ROLE_USER";
-    if (!role.startsWith("ROLE_")) role = "ROLE_" + role.toUpperCase();
-    user.setRole(role);
-    user.setReportsFiled(0);
-    user.setReportsResolved(0);
+        if (role == null || role.trim().isEmpty()) {
+            role = "USER";
+        }
 
-    userRepository.save(user);
+        role = role.trim().toUpperCase();
 
-    return ResponseEntity.ok(new MessageResponse("User created successfully", true));
+        // =========================
+        // DRIVER SIGNUP
+        // =========================
+        if ("DRIVER".equals(role) || "ROLE_DRIVER".equals(role)) {
+
+            // check existing driver
+            if (driverRepository.findByEmail(signUpRequest.getEmail()).isPresent()) {
+
+                return ResponseEntity
+                        .badRequest()
+                        .body(new MessageResponse(
+                                "Driver email already exists!", false));
+            }
+
+            Driver driver = new Driver();
+
+            driver.setName(signUpRequest.getName());
+            driver.setEmail(signUpRequest.getEmail());
+
+            // optional
+            // driver.setPhone(signUpRequest.getPhone());
+            // driver.setVehicleNumber(signUpRequest.getVehicleNumber());
+
+            driverRepository.save(driver);
+
+            return ResponseEntity.ok(
+                    new MessageResponse(
+                            "Driver created successfully", true));
+        }
+
+        // =========================
+        // NORMAL USER SIGNUP
+        // =========================
+        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(new MessageResponse(
+                            "Email is already in use!", false));
+        }
+
+        User user = new User(
+                signUpRequest.getName(),
+                signUpRequest.getEmail(),
+                encoder.encode(signUpRequest.getPassword()));
+
+        user.setRole("ROLE_USER");
+        user.setReportsFiled(0);
+        user.setReportsResolved(0);
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(
+                new MessageResponse(
+                        "User created successfully", true));
     }
 
     @PostMapping("/login")
@@ -73,40 +122,39 @@ public class AuthController {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-    String jwt = jwtUtils.generateJwtToken(authentication);
+        String jwt = jwtUtils.generateJwtToken(authentication);
 
-        // Delete existing token if any (optional based on your session management, keeping it clean)
+        // Delete existing token if any (optional based on your session management,
+        // keeping it clean)
         refreshTokenService.deleteByUserId(userDetails.getId());
-        
+
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
 
-    // fetch user entity to include safe profile metadata
-    java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
-    com.cleancity.backend.entity.User u = userOpt.orElse(null);
+        // fetch user entity to include safe profile metadata
+        java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
+        com.cleancity.backend.entity.User u = userOpt.orElse(null);
 
-    UserDto userDto;
-    if (u != null) {
-        userDto = new UserDto(
-            u.getId().toString(),
-            u.getName(),
-            u.getEmail(),
-            u.getRole(),
-            u.getRewardPoints(),
-            u.getIsVerified(),
-            u.getCreatedAt(),
-            u.getUpdatedAt(),
-            u.getReportsFiled(),
-            u.getReportsResolved()
-        );
-    } else {
-        userDto = new UserDto(
-            userDetails.getId().toString(),
-            userDetails.getName(),
-            userDetails.getEmail()
-        );
-    }
+        UserDto userDto;
+        if (u != null) {
+            userDto = new UserDto(
+                    u.getId().toString(),
+                    u.getName(),
+                    u.getEmail(),
+                    u.getRole(),
+                    u.getRewardPoints(),
+                    u.getIsVerified(),
+                    u.getCreatedAt(),
+                    u.getUpdatedAt(),
+                    u.getReportsFiled(),
+                    u.getReportsResolved());
+        } else {
+            userDto = new UserDto(
+                    userDetails.getId().toString(),
+                    userDetails.getName(),
+                    userDetails.getEmail());
+        }
 
-    return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken(), userDto));
+        return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken(), userDto));
     }
 
     @PostMapping("/refresh")
@@ -141,31 +189,29 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(Authentication authentication) {
-        if(authentication == null || !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
             return ResponseEntity.status(401).body(new MessageResponse("Unauthorized"));
         }
-        
-    UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-    java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
-    if (userOpt.isPresent()) {
-        com.cleancity.backend.entity.User u = userOpt.get();
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
+        if (userOpt.isPresent()) {
+            com.cleancity.backend.entity.User u = userOpt.get();
+            return ResponseEntity.ok(new UserDto(
+                    u.getId().toString(),
+                    u.getName(),
+                    u.getEmail(),
+                    u.getRole(),
+                    u.getRewardPoints(),
+                    u.getIsVerified(),
+                    u.getCreatedAt(),
+                    u.getUpdatedAt(),
+                    u.getReportsFiled(),
+                    u.getReportsResolved()));
+        }
         return ResponseEntity.ok(new UserDto(
-            u.getId().toString(),
-            u.getName(),
-            u.getEmail(),
-            u.getRole(),
-            u.getRewardPoints(),
-            u.getIsVerified(),
-            u.getCreatedAt(),
-            u.getUpdatedAt(),
-            u.getReportsFiled(),
-            u.getReportsResolved()
-        ));
-    }
-    return ResponseEntity.ok(new UserDto(
-        userDetails.getId().toString(),
-        userDetails.getName(),
-        userDetails.getEmail()
-    ));
+                userDetails.getId().toString(),
+                userDetails.getName(),
+                userDetails.getEmail()));
     }
 }

@@ -2,6 +2,7 @@ package com.cleancity.backend.controller;
 
 import com.cleancity.backend.security.services.UserDetailsImpl;
 import com.cleancity.backend.service.DriverService;
+import com.cleancity.backend.dto.AssignDriverRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -65,48 +66,33 @@ public class DriverController {
     }
 
     @PostMapping("/reports/{id}/assign")
-@PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> assign(
-        @PathVariable("id") String idStr,
-        @RequestBody(required = false) Map<String, String> body,
-        Authentication authentication) {
-
-        UUID id;
-        try {
-            id = UUID.fromString(idStr);
-        } catch (IllegalArgumentException iae) {
-            return ResponseEntity.badRequest().body(Map.of("message", "invalid report id"));
-        }
+            @PathVariable("id") UUID reportId,
+            @RequestBody AssignDriverRequest request,
+            Authentication authentication) {
 
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-        String note = body == null ? null : body.get("note");
-
-        // determine driverId: admins may pass driverId in body, drivers assign to themselves
         UUID driverId;
+        
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
 
         if (isAdmin) {
-            if (body == null || body.get("driverId") == null) {
+            if (request.getDriverId() == null) {
                 return ResponseEntity.badRequest().body(Map.of("message", "driverId required for admin assignment"));
             }
-            String driverIdStr = body.get("driverId");
-            try {
-                driverId = UUID.fromString(driverIdStr);
-            } catch (IllegalArgumentException iae) {
-                return ResponseEntity.badRequest().body(Map.of("message", "invalid driver id"));
-            }
+            driverId = request.getDriverId();
         } else {
             driverId = user.getId();
         }
 
         try {
-            return ResponseEntity.ok(
-                    driverService.assignReport(id, driverId, note)
-            );
+            return ResponseEntity.ok(driverService.assignReport(reportId, driverId));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(400).body(Map.of("message", e.getMessage()));
         } catch (IllegalStateException e) {
-            return ResponseEntity.status(409)
-                    .body(Map.of("message", e.getMessage()));
+            return ResponseEntity.status(409).body(Map.of("message", e.getMessage()));
         }
     }
 

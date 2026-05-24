@@ -2,6 +2,8 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.3.4'
 	id 'io.spring.dependency-management' version '1.1.6'
+	id 'org.jetbrains.kotlin.jvm' version '1.9.25'
+	id 'org.jetbrains.kotlin.plugin.spring' version '1.9.25'
 }
 
 group = 'com.cleancity'
@@ -40,7 +42,18 @@ tasks.withType(JavaCompile) {
 	options.release = 17
 }
 
+sourceSets {
+	main.kotlin.srcDirs += 'src/main/java'
+}
 
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+	exclude '**/device/**'
+	exclude '**/fcm/**'
+}
+
+bootRun {
+	systemProperty 'java.net.preferIPv4Stack', 'true'
+}
 
 tasks.named('test') {
 	useJUnitPlatform()

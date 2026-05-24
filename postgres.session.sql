@@ -13,13 +13,15 @@
 -- SELECT * from users;
 
 
-SELECT * from drivers;
+-- SELECT * from drivers;
 
 -- SELECT * from report_assignments;
 
 -- SELECT * from refresh_tokens;
 
--- SELECT * from user_devices;
+SELECT * from user_devices;
+
+
 
 -- ALTER TABLE users ADD COLUMN reports_filed INTEGER DEFAULT 0 NOT NULL;
 -- ALTER TABLE users ADD COLUMN reports_resolved INTEGER DEFAULT 0 NOT NULL;

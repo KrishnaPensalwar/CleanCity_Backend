@@ -61,27 +61,34 @@ public class DriverService {
     }
 
     @Transactional
-    public ReportResponse assignReport(UUID reportId, UUID driverId, String note) {
-        int updated = reportRepository.assignIfPending(reportId, driverId);
-        if (updated == 0)
-            throw new IllegalStateException("Report already assigned or not available");
-        Report r = reportRepository.findById(reportId)
+    public ReportResponse assignReport(UUID reportId, UUID driverId) {
+        Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new IllegalArgumentException("Driver not found"));
+
+        report.setAssignedDriver(driver);
+        report.setStatus(com.cleancity.backend.entity.ReportStatus.ASSIGNED);
+        report.setAssignedAt(LocalDateTime.now());
+        
+        reportRepository.save(report);
+
         // create assignment audit
         com.cleancity.backend.entity.ReportAssignment a = new com.cleancity.backend.entity.ReportAssignment();
         a.setReportId(reportId);
         a.setAction("ASSIGNED");
         a.setActorDriverId(driverId);
-        a.setNotes(note);
+        a.setNotes("Assigned via Admin Dashboard");
         assignmentRepository.save(a);
-        return new ReportResponse(r);
+
+        return new ReportResponse(report);
     }
 
     public List<ReportResponse> getAssigned(UUID driverId) {
         List<Report> list = reportRepository.findAll();
         List<ReportResponse> out = new ArrayList<>();
         for (Report r : list) {
-            if (driverId.equals(r.getAssignedDriverId()))
+            if (r.getAssignedDriver() != null && driverId.equals(r.getAssignedDriver().getId()))
                 out.add(new ReportResponse(r));
         }
         return out;
@@ -91,7 +98,7 @@ public class DriverService {
     public ReportResponse completeReport(UUID reportId, UUID driverId, String action, String notes) {
         Report r = reportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
-        if (r.getAssignedDriverId() == null || !r.getAssignedDriverId().equals(driverId)) {
+        if (r.getAssignedDriver() == null || !r.getAssignedDriver().getId().equals(driverId)) {
             throw new SecurityException("You don't have permission to perform this action");
         }
         if (r.getStatus() != com.cleancity.backend.entity.ReportStatus.ASSIGNED) {
@@ -135,7 +142,7 @@ public class DriverService {
             org.springframework.web.multipart.MultipartFile image) throws java.io.IOException {
         Report r = reportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
-        if (r.getAssignedDriverId() == null || !r.getAssignedDriverId().equals(driverId)) {
+        if (r.getAssignedDriver() == null || !r.getAssignedDriver().getId().equals(driverId)) {
             throw new SecurityException("You don't have permission to perform this action");
         }
         if (r.getStatus() != com.cleancity.backend.entity.ReportStatus.ASSIGNED) {
@@ -174,7 +181,7 @@ public class DriverService {
         final com.cleancity.backend.entity.Driver finalDriver = driverEntity;
         int totalTasks = reportRepository.findAll().stream()
                 .mapToInt(
-                        r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getAssignedDriverId()) ? 1 : 0)
+                        r -> finalDriver.getId() != null && r.getAssignedDriver() != null && finalDriver.getId().equals(r.getAssignedDriver().getId()) ? 1 : 0)
                 .sum();
         int completed = reportRepository.findAll().stream().mapToInt(
                 r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getCompletedByDriverId()) ? 1 : 0)

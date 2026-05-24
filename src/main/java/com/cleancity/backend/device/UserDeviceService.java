@@ -28,8 +28,19 @@ public class UserDeviceService {
         UserDetailsImpl principal = (UserDetailsImpl) auth.getPrincipal();
         String userId = principal.getId().toString();
 
-        UserDevice existing = repo.findByUserIdAndDeviceId(userId, req.getDeviceId()).orElse(null);
         LocalDateTime now = LocalDateTime.now();
+
+        UserDevice existingByToken = repo.findByUserIdAndFcmToken(userId, req.getFcmToken()).orElse(null);
+        if (existingByToken != null) {
+            existingByToken.setDeviceName(req.getDeviceName());
+            existingByToken.setDeviceId(req.getDeviceId());
+            existingByToken.setActive(true);
+            existingByToken.setUpdatedAt(now);
+            UserDevice saved = repo.save(existingByToken);
+            return new RegisterDeviceResponse("Device registered successfully", saved.getDeviceId(), saved.getFcmToken(), saved.getDeviceName());
+        }
+
+        UserDevice existing = repo.findByUserIdAndDeviceId(userId, req.getDeviceId()).orElse(null);
 
         if (existing != null) {
             existing.setFcmToken(req.getFcmToken());
@@ -37,7 +48,7 @@ public class UserDeviceService {
             existing.setActive(true);
             existing.setUpdatedAt(now);
             UserDevice saved = repo.save(existing);
-            return new RegisterDeviceResponse(saved.getDeviceId(), saved.getFcmToken(), saved.getDeviceName());
+            return new RegisterDeviceResponse("Device registered successfully", saved.getDeviceId(), saved.getFcmToken(), saved.getDeviceName());
         } else {
             UserDevice entity = new UserDevice(
                 userId,
@@ -47,7 +58,7 @@ public class UserDeviceService {
                 req.getPlatform()
             );
             UserDevice saved = repo.save(entity);
-            return new RegisterDeviceResponse(saved.getDeviceId(), saved.getFcmToken(), saved.getDeviceName());
+            return new RegisterDeviceResponse("Device registered successfully", saved.getDeviceId(), saved.getFcmToken(), saved.getDeviceName());
         }
     }
 

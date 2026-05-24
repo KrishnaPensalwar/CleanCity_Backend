@@ -31,8 +31,9 @@ public class Report {
     @Column(nullable = false)
     private ReportStatus status;
 
-    @Column(name = "assigned_driver_id")
-    private java.util.UUID assignedDriverId;
+    @ManyToOne
+    @JoinColumn(name = "driver_id")
+    private Driver assignedDriver;
 
     @Column(name = "assigned_at")
     private java.time.LocalDateTime assignedAt;
@@ -148,8 +149,8 @@ public class Report {
         return createdAt;
     }
 
-    public java.util.UUID getAssignedDriverId() { return assignedDriverId; }
-    public void setAssignedDriverId(java.util.UUID id) { this.assignedDriverId = id; }
+    public Driver getAssignedDriver() { return assignedDriver; }
+    public void setAssignedDriver(Driver driver) { this.assignedDriver = driver; }
     public java.time.LocalDateTime getAssignedAt() { return assignedAt; }
     public void setAssignedAt(java.time.LocalDateTime t) { this.assignedAt = t; }
 

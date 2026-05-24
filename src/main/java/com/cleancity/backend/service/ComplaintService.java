@@ -48,7 +48,7 @@ public class ComplaintService {
         dto.setUpdatedAt(report.getCompletedAt());
         dto.setLatitude(report.getLatitude());
         dto.setLongitude(report.getLongitude());
-        dto.setAssignedWorker(report.getAssignedDriverId() == null ? null : report.getAssignedDriverId().toString());
+        dto.setAssignedWorker(report.getAssignedDriver() == null ? null : report.getAssignedDriver().getId().toString());
 
         // fields not present in entity left null (title, category, location, adminRemarks, resolutionDetails)
 
