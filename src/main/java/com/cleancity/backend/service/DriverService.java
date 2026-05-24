@@ -1,5 +1,6 @@
 package com.cleancity.backend.service;
 
+import com.cleancity.backend.dto.DriverDto;
 import com.cleancity.backend.dto.ReportResponse;
 import com.cleancity.backend.entity.Driver;
 import com.cleancity.backend.entity.Report;
@@ -95,6 +96,65 @@ public class DriverService {
         return new ReportResponse(report);
     }
 
+    public UUID requireDriverProfileId(UUID accountId) {
+        return driverRepository.findByAccountId(accountId)
+                .map(Driver::getId)
+                .orElseThrow(() -> new ApiException(ErrorCode.DRIVER_NOT_FOUND));
+    }
+
+    @Transactional(readOnly = true)
+    public DriverDto getDriverDto(UUID accountId) {
+        Driver driverEntity = driverRepository.findByAccountId(accountId)
+                .orElse(null);
+        if (driverEntity == null) {
+            return null;
+        }
+        return mapToDriverDto(driverEntity);
+    }
+
+    private DriverDto mapToDriverDto(Driver driverEntity) {
+        if (driverEntity == null) {
+            return null;
+        }
+
+        UUID accountId = driverEntity.getAccountId();
+        com.cleancity.backend.entity.User userProfile = userRepository.findByAccountId(accountId).orElse(null);
+        String name = userProfile != null ? userProfile.getName() : "Driver";
+        String email = driverEntity.getAccount() != null ? driverEntity.getAccount().getEmail() : null;
+
+        final Driver finalDriver = driverEntity;
+        int totalTasks = reportRepository.findAll().stream()
+                .mapToInt(
+                        r -> finalDriver.getId() != null && r.getAssignedDriver() != null && finalDriver.getId().equals(r.getAssignedDriver().getId()) ? 1 : 0)
+                .sum();
+        int completed = reportRepository.findAll().stream().mapToInt(
+                r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getCompletedByDriverId()) ? 1 : 0)
+                .sum();
+        int completionPercentage = totalTasks == 0 ? 0 : (int) ((completed * 100.0) / totalTasks);
+
+        DriverDto dto = new DriverDto(
+                driverEntity.getId().toString(),
+                name,
+                email,
+                "ROLE_DRIVER",
+                driverEntity.getZone(),
+                driverEntity.getTotalTasks(),
+                driverEntity.getCompletionPercentage(),
+                driverEntity.getRating(),
+                driverEntity.getStreakDays(),
+                driverEntity.getVehicleNumber(),
+                driverEntity.getVehicleType(),
+                driverEntity.getShiftTime(),
+                driverEntity.getIsActive());
+
+        if (dto.getTotalTasks() == null || dto.getTotalTasks() == 0)
+            dto.setTotalTasks(totalTasks);
+        if (dto.getCompletionPercentage() == null || dto.getCompletionPercentage() == 0)
+            dto.setCompletionPercentage(completionPercentage);
+
+        return dto;
+    }
+
     public List<ReportResponse> getAssigned(UUID driverId) {
         List<Report> list = reportRepository.findAll();
         List<ReportResponse> out = new ArrayList<>();
@@ -123,16 +183,16 @@ public class DriverService {
             // award points to uploader
             try {
                 java.util.UUID userUuid = java.util.UUID.fromString(r.getUserId());
-                userRepository.findById(userUuid).ifPresent(user -> {
-                    user.setRewardPoints(user.getRewardPoints() + 10);
-                    userRepository.save(user);
-                });
-            } catch (IllegalArgumentException ex) {
-                userRepository.findByEmail(r.getUserId()).ifPresent(user -> {
-                    user.setRewardPoints(user.getRewardPoints() + 10);
-                    userRepository.save(user);
-                });
-            }
+            userRepository.findByAccountId(userUuid).ifPresent(user -> {
+                user.setRewardPoints(user.getRewardPoints() + 10);
+                userRepository.save(user);
+            });
+        } catch (IllegalArgumentException ex) {
+            userRepository.findByAccountEmail(r.getUserId()).ifPresent(user -> {
+                user.setRewardPoints(user.getRewardPoints() + 10);
+                userRepository.save(user);
+            });
+        }
         } else {
             r.setStatus(com.cleancity.backend.entity.ReportStatus.REJECTED);
             r.setCompletedByDriverId(driverId);
@@ -178,68 +238,35 @@ public class DriverService {
         return new ReportResponse(r);
     }
 
-    public com.cleancity.backend.dto.DriverDto getDriverDto(String email, java.util.UUID driverId) {
-        com.cleancity.backend.entity.Driver driverEntity = driverRepository.findByEmail(email).orElse(null);
-        if (driverEntity == null) {
-            // try by driver id
-            driverEntity = driverRepository.findById(driverId).orElse(null);
-        }
-        if (driverEntity == null)
-            return null;
-
-        // compute stats: totalTasks, completionPercentage, streakDays, rating
-        // placeholder
-        final com.cleancity.backend.entity.Driver finalDriver = driverEntity;
-        int totalTasks = reportRepository.findAll().stream()
-                .mapToInt(
-                        r -> finalDriver.getId() != null && r.getAssignedDriver() != null && finalDriver.getId().equals(r.getAssignedDriver().getId()) ? 1 : 0)
-                .sum();
-        int completed = reportRepository.findAll().stream().mapToInt(
-                r -> finalDriver.getId() != null && finalDriver.getId().equals(r.getCompletedByDriverId()) ? 1 : 0)
-                .sum();
-        int completionPercentage = totalTasks == 0 ? 0 : (int) ((completed * 100.0) / totalTasks);
-
-        com.cleancity.backend.dto.DriverDto dto = new com.cleancity.backend.dto.DriverDto(
-                driverEntity.getId().toString(),
-                driverEntity.getName(),
-                driverEntity.getEmail(),
-                "ROLE_DRIVER",
-                driverEntity.getZone(),
-                driverEntity.getTotalTasks(),
-                driverEntity.getCompletionPercentage(),
-                driverEntity.getRating(),
-                driverEntity.getStreakDays(),
-                driverEntity.getVehicleNumber(),
-                driverEntity.getVehicleType(),
-                driverEntity.getShiftTime(),
-                driverEntity.getIsActive());
-
-        // override totals with computed stats if stored values absent
-        if (dto.getTotalTasks() == null || dto.getTotalTasks() == 0)
-            dto.setTotalTasks(totalTasks);
-        if (dto.getCompletionPercentage() == null || dto.getCompletionPercentage() == 0)
-            dto.setCompletionPercentage(completionPercentage);
-
-        return dto;
+    // Get all drivers mapped to DTOs
+    @Transactional(readOnly = true)
+    public List<DriverDto> getAllDrivers() {
+        return driverRepository.findAll().stream()
+                .map(this::mapToDriverDto)
+                .collect(java.util.stream.Collectors.toList());
     }
 
-    // ✅ Get all drivers
-    public List<Driver> getAllDrivers() {
-        return driverRepository.findAll();
+    // ✅ Only active drivers mapped to DTOs
+    @Transactional(readOnly = true)
+    public List<DriverDto> getActiveDrivers() {
+        return driverRepository.findByIsActiveTrue().stream()
+                .map(this::mapToDriverDto)
+                .collect(java.util.stream.Collectors.toList());
     }
 
-    // ✅ Only active drivers
-    public List<Driver> getActiveDrivers() {
-        return driverRepository.findByIsActiveTrue();
+    // ✅ Filter by zone mapped to DTOs
+    @Transactional(readOnly = true)
+    public List<DriverDto> getDriversByZone(String zone) {
+        return driverRepository.findByZone(zone).stream()
+                .map(this::mapToDriverDto)
+                .collect(java.util.stream.Collectors.toList());
     }
 
-    // ✅ Filter by zone
-    public List<Driver> getDriversByZone(String zone) {
-        return driverRepository.findByZone(zone);
-    }
-
-    // ✅ Top rated drivers
-    public List<Driver> getTopDrivers() {
-        return driverRepository.findTop10ByOrderByRatingDesc();
+    // ✅ Top rated drivers mapped to DTOs
+    @Transactional(readOnly = true)
+    public List<DriverDto> getTopDrivers() {
+        return driverRepository.findTop10ByOrderByRatingDesc().stream()
+                .map(this::mapToDriverDto)
+                .collect(java.util.stream.Collectors.toList());
     }
 }

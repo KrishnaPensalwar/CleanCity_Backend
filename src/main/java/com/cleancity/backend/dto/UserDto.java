@@ -1,11 +1,16 @@
 package com.cleancity.backend.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class UserDto {
     private String id;
     private String name;
     private String email;
+    private String phone;
+    private List<String> roles;
+    /** @deprecated Use {@link #roles} */
+    @Deprecated
     private String role;
     private Integer rewardPoints;
     private Boolean isVerified;
@@ -13,6 +18,8 @@ public class UserDto {
     private LocalDateTime updatedAt;
     private Integer reportsFiled;
     private Integer reportsResolved;
+    private String address;
+    private String profileImage;
 
     public UserDto() {}
 
@@ -20,20 +27,6 @@ public class UserDto {
         this.id = id;
         this.name = name;
         this.email = email;
-    }
-
-    public UserDto(String id, String name, String email, String role, Integer rewardPoints, Boolean isVerified,
-                   LocalDateTime createdAt, LocalDateTime updatedAt, Integer reportsFiled, Integer reportsResolved) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.role = role;
-        this.rewardPoints = rewardPoints;
-        this.isVerified = isVerified;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.reportsFiled = reportsFiled;
-        this.reportsResolved = reportsResolved;
     }
 
     public String getId() {
@@ -58,6 +51,22 @@ public class UserDto {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public List<String> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(List<String> roles) {
+        this.roles = roles;
     }
 
     public String getRole() {
@@ -114,5 +123,21 @@ public class UserDto {
 
     public void setReportsResolved(Integer reportsResolved) {
         this.reportsResolved = reportsResolved;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(String profileImage) {
+        this.profileImage = profileImage;
     }
 }

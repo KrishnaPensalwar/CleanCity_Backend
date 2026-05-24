@@ -1,8 +1,8 @@
 package com.cleancity.backend.controller;
 
+import com.cleancity.backend.auth.security.AccountDetailsImpl;
 import com.cleancity.backend.exception.ApiException;
 import com.cleancity.backend.exception.ErrorCode;
-import com.cleancity.backend.security.services.UserDetailsImpl;
 import com.cleancity.backend.service.DriverService;
 import com.cleancity.backend.dto.AssignDriverRequest;
 import org.springframework.http.ResponseEntity;
@@ -66,7 +66,7 @@ public class DriverController {
             @RequestBody(required = false) AssignDriverRequest request,
             Authentication authentication) {
 
-        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
         UUID driverId;
 
         boolean isAdmin = authentication.getAuthorities().stream()
@@ -78,7 +78,7 @@ public class DriverController {
             }
             driverId = request.getDriverId();
         } else {
-            driverId = user.getId();
+            driverId = driverService.requireDriverProfileId(account.getAccountId());
         }
 
         return ResponseEntity.ok(driverService.assignReport(reportId, driverId));
@@ -87,10 +87,9 @@ public class DriverController {
     @GetMapping("/reports/assigned")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> assigned(Authentication authentication) {
-        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-        return ResponseEntity.ok(
-                driverService.getAssigned(user.getId())
-        );
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+        UUID driverId = driverService.requireDriverProfileId(account.getAccountId());
+        return ResponseEntity.ok(driverService.getAssigned(driverId));
     }
 
     @PostMapping("/reports/{id}/completion-photo")
@@ -107,20 +106,16 @@ public class DriverController {
             throw new ApiException(ErrorCode.INVALID_REPORT_ID);
         }
 
-        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-        return ResponseEntity.ok(
-                driverService.uploadCompletionPhoto(id, user.getId(), image)
-        );
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+        UUID driverId = driverService.requireDriverProfileId(account.getAccountId());
+        return ResponseEntity.ok(driverService.uploadCompletionPhoto(id, driverId, image));
     }
 
     @GetMapping("/reports/profile")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> profile(Authentication authentication) {
-        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-
-        return ResponseEntity.ok(
-                driverService.getDriverDto(user.getEmail(), user.getId())
-        );
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+        return ResponseEntity.ok(driverService.getDriverDto(account.getAccountId()));
     }
 
     @PostMapping("/reports/{id}/complete")
@@ -137,7 +132,8 @@ public class DriverController {
             throw new ApiException(ErrorCode.INVALID_REPORT_ID);
         }
 
-        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+        UUID driverId = driverService.requireDriverProfileId(account.getAccountId());
 
         String action = (String) body.getOrDefault("action", "APPROVED");
         String notes = (String) body.getOrDefault("notes", null);
@@ -147,7 +143,7 @@ public class DriverController {
         }
 
         return ResponseEntity.ok(
-                driverService.completeReport(id, user.getId(), action, notes)
+                driverService.completeReport(id, driverId, action, notes)
         );
     }
 }

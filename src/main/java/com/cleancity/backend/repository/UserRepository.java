@@ -11,8 +11,12 @@ import java.util.UUID;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
-    Optional<User> findByEmail(String email);
-    Boolean existsByEmail(String email);
+
+    @Query("SELECT u FROM User u WHERE u.account.id = :accountId")
+    Optional<User> findByAccountId(@Param("accountId") UUID accountId);
+
+    @Query("SELECT u FROM User u JOIN u.account a WHERE a.email = :email")
+    Optional<User> findByAccountEmail(@Param("email") String email);
 
     java.util.List<User> findTop5ByOrderByRewardPointsDesc();
 

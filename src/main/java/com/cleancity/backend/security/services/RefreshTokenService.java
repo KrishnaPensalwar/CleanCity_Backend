@@ -1,11 +1,11 @@
 package com.cleancity.backend.security.services;
 
+import com.cleancity.backend.auth.domain.Account;
+import com.cleancity.backend.auth.repository.AccountRepository;
 import com.cleancity.backend.entity.RefreshToken;
 import com.cleancity.backend.exception.ApiException;
 import com.cleancity.backend.exception.ErrorCode;
 import com.cleancity.backend.repository.RefreshTokenRepository;
-import com.cleancity.backend.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,11 +20,13 @@ public class RefreshTokenService {
     @Value("${app.jwtRefreshExpirationMs:604800000}")
     private Long refreshTokenDurationMs;
 
-    @Autowired
-    private RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final AccountRepository accountRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository, AccountRepository accountRepository) {
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.accountRepository = accountRepository;
+    }
 
     public Optional<RefreshToken> findByToken(String token) {
         return refreshTokenRepository.findByToken(token);
@@ -32,19 +34,19 @@ public class RefreshTokenService {
 
     @Transactional
     public void deleteByToken(String token) {
-        Optional<RefreshToken> opt = refreshTokenRepository.findByToken(token);
-        opt.ifPresent(refreshTokenRepository::delete);
+        refreshTokenRepository.findByToken(token).ifPresent(refreshTokenRepository::delete);
     }
 
-    public RefreshToken createRefreshToken(UUID userId) {
-        RefreshToken refreshToken = new RefreshToken();
+    public RefreshToken createRefreshToken(UUID accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        refreshToken.setUser(userRepository.findById(userId).orElseThrow());
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setAccount(account);
         refreshToken.setExpiry(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000));
         refreshToken.setToken(UUID.randomUUID().toString());
 
-        refreshToken = refreshTokenRepository.save(refreshToken);
-        return refreshToken;
+        return refreshTokenRepository.save(refreshToken);
     }
 
     public RefreshToken verifyExpiration(RefreshToken token) {
@@ -56,7 +58,16 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public int deleteByUserId(UUID userId) {
-        return refreshTokenRepository.deleteByUser(userRepository.findById(userId).orElseThrow());
+    public int deleteByAccountId(UUID accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        return refreshTokenRepository.deleteByAccount(account);
+    }
+
+    /** @deprecated Use {@link #deleteByAccountId(UUID)} */
+    @Deprecated
+    @Transactional
+    public int deleteByUserId(UUID accountId) {
+        return deleteByAccountId(accountId);
     }
 }

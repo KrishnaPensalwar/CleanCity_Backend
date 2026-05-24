@@ -2,7 +2,7 @@ package com.cleancity.backend.device;
 
 import com.cleancity.backend.device.dto.RegisterDeviceRequest;
 import com.cleancity.backend.device.dto.RegisterDeviceResponse;
-import com.cleancity.backend.security.services.UserDetailsImpl;
+import com.cleancity.backend.auth.security.AccountDetailsImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -25,8 +25,8 @@ public class UserDeviceService {
 
     @Transactional
     public RegisterDeviceResponse registerDevice(RegisterDeviceRequest req, Authentication auth) {
-        UserDetailsImpl principal = (UserDetailsImpl) auth.getPrincipal();
-        String userId = principal.getId().toString();
+        AccountDetailsImpl principal = (AccountDetailsImpl) auth.getPrincipal();
+        String userId = principal.getAccountId().toString();
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -64,8 +64,8 @@ public class UserDeviceService {
 
     @Transactional
     public void deleteDevice(String deviceId, Authentication auth) {
-        UserDetailsImpl principal = (UserDetailsImpl) auth.getPrincipal();
-        String userId = principal.getId().toString();
+        AccountDetailsImpl principal = (AccountDetailsImpl) auth.getPrincipal();
+        String userId = principal.getAccountId().toString();
 
         repo.findByUserIdAndDeviceId(userId, deviceId).ifPresent(device -> {
             device.setActive(false);

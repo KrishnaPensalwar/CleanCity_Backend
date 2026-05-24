@@ -37,7 +37,6 @@ public class ReportResponse {
         this.completionImageUrl = report.getCompletionImageUrl();
         if (report.getAssignedDriver() != null) {
             this.assignedDriverId = report.getAssignedDriver().getId();
-            this.assignedDriverName = report.getAssignedDriver().getName();
         }
     }
 

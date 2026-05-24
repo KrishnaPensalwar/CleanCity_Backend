@@ -12,6 +12,9 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "AUTH_006", "Email is already in use."),
     DRIVER_EMAIL_EXISTS(HttpStatus.BAD_REQUEST, "AUTH_007", "Driver email already exists."),
     NOT_AUTHORIZED(HttpStatus.FORBIDDEN, "AUTH_008", "Not authorized to access this resource."),
+    PHONE_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "AUTH_009", "Phone number is already in use."),
+    ACCOUNT_INACTIVE(HttpStatus.FORBIDDEN, "AUTH_010", "Account is inactive or suspended."),
+    ALREADY_DRIVER(HttpStatus.CONFLICT, "AUTH_011", "Account already has the driver role."),
 
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT_001", "Report not found."),
     REPORT_NOT_PENDING(HttpStatus.CONFLICT, "REPORT_002", "Only pending reports can be assigned to a driver."),

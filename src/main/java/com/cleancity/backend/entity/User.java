@@ -1,10 +1,12 @@
 package com.cleancity.backend.entity;
 
+import com.cleancity.backend.auth.domain.Account;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
-import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -14,14 +16,18 @@ public class User {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "account_id", nullable = false, unique = true)
+    private Account account;
+
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @Column(length = 500)
+    private String address;
 
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
+    @Column(name = "profile_image", length = 1000)
+    private String profileImage;
 
     @Column(name = "is_verified")
     private Boolean isVerified = false;
@@ -37,9 +43,6 @@ public class User {
     @Column(name = "reward_points", nullable = false)
     private Integer rewardPoints = 0;
 
-    @Column(name = "role", nullable = false)
-    private String role = "ROLE_USER";
-
     @Column(name = "reports_filed", nullable = false)
     private Integer reportsFiled = 0;
 
@@ -48,34 +51,92 @@ public class User {
 
     public User() {}
 
-    public User(String name, String email, String passwordHash) {
+    public User(Account account, String name) {
+        this.account = account;
         this.name = name;
-        this.email = email;
-        this.passwordHash = passwordHash;
     }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public UUID getId() {
+        return id;
+    }
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
-    public Boolean getIsVerified() { return isVerified; }
-    public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-    public Integer getRewardPoints() { return rewardPoints; }
-    public void setRewardPoints(Integer rewardPoints) { this.rewardPoints = rewardPoints; }
-    public Integer getReportsFiled() { return this.reportsFiled; }
-    public Integer getReportsResolved() { return this.reportsResolved; }
+    public void setId(UUID id) {
+        this.id = id;
+    }
 
-    public void setReportsFiled(Integer reportsFiled) { this.reportsFiled = reportsFiled; }
-    public void setReportsResolved(Integer reportsResolved) { this.reportsResolved = reportsResolved; }
+    public Account getAccount() {
+        return account;
+    }
+
+    public void setAccount(Account account) {
+        this.account = account;
+    }
+
+    public UUID getAccountId() {
+        return account != null ? account.getId() : null;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getProfileImage() {
+        return profileImage;
+    }
+
+    public void setProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
+    public Boolean getIsVerified() {
+        return isVerified;
+    }
+
+    public void setIsVerified(Boolean isVerified) {
+        this.isVerified = isVerified;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public Integer getRewardPoints() {
+        return rewardPoints;
+    }
+
+    public void setRewardPoints(Integer rewardPoints) {
+        this.rewardPoints = rewardPoints;
+    }
+
+    public Integer getReportsFiled() {
+        return reportsFiled;
+    }
+
+    public void setReportsFiled(Integer reportsFiled) {
+        this.reportsFiled = reportsFiled;
+    }
+
+    public Integer getReportsResolved() {
+        return reportsResolved;
+    }
+
+    public void setReportsResolved(Integer reportsResolved) {
+        this.reportsResolved = reportsResolved;
+    }
 }

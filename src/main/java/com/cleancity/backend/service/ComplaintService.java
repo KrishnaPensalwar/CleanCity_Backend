@@ -1,11 +1,11 @@
 package com.cleancity.backend.service;
 
+import com.cleancity.backend.auth.security.AccountDetailsImpl;
 import com.cleancity.backend.dto.ComplaintDetailsResponse;
 import com.cleancity.backend.entity.Report;
 import com.cleancity.backend.exception.ApiException;
 import com.cleancity.backend.exception.ErrorCode;
 import com.cleancity.backend.repository.ReportRepository;
-import com.cleancity.backend.security.services.UserDetailsImpl;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -30,13 +30,12 @@ public class ComplaintService {
         Report report = reportRepository.findById(complaintId)
                 .orElseThrow(() -> new ApiException(ErrorCode.COMPLAINT_NOT_FOUND));
 
-        UserDetailsImpl user = (UserDetailsImpl) auth.getPrincipal();
+        AccountDetailsImpl account = (AccountDetailsImpl) auth.getPrincipal();
 
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
 
-        // Only allow if owner or admin
-        if (!isAdmin && !user.getId().toString().equals(report.getUserId())) {
+        if (!isAdmin && !account.getAccountId().toString().equals(report.getUserId())) {
             throw new ApiException(ErrorCode.NOT_AUTHORIZED);
         }
 
@@ -51,8 +50,6 @@ public class ComplaintService {
         dto.setLatitude(report.getLatitude());
         dto.setLongitude(report.getLongitude());
         dto.setAssignedWorker(report.getAssignedDriver() == null ? null : report.getAssignedDriver().getId().toString());
-
-        // fields not present in entity left null (title, category, location, adminRemarks, resolutionDetails)
 
         return dto;
     }

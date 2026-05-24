@@ -1,7 +1,7 @@
 package com.cleancity.backend.controller;
 
+import com.cleancity.backend.auth.security.AccountDetailsImpl;
 import com.cleancity.backend.dto.ReportResponse;
-import com.cleancity.backend.security.services.UserDetailsImpl;
 import com.cleancity.backend.service.ReportService;
 import com.cleancity.backend.entity.ReportStatus;
 import java.util.List;
@@ -25,11 +25,17 @@ public class ReportController {
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ReportResponse> uploadReport(
-            @ModelAttribute com.cleancity.backend.dto.ReportRequestDto reportRequest) throws java.io.IOException {
+            @ModelAttribute com.cleancity.backend.dto.ReportRequestDto reportRequest,
+            Authentication authentication) throws java.io.IOException {
+
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+        String accountId = reportRequest.getUserId() != null && !reportRequest.getUserId().isBlank()
+                ? reportRequest.getUserId()
+                : account.getAccountId().toString();
 
         ReportResponse response = reportService.createReport(
                 reportRequest.getImage(),
-                reportRequest.getUserId(),
+                accountId,
                 reportRequest.getTimestamp(),
                 reportRequest.getLatitude(),
                 reportRequest.getLongitude(),
@@ -48,8 +54,8 @@ public class ReportController {
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ReportResponse>> getMyReports(Authentication authentication) {
-        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-        return ResponseEntity.ok(reportService.getReportsByUser(user.getId().toString()));
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+        return ResponseEntity.ok(reportService.getReportsByUser(account.getAccountId().toString()));
     }
 
     @PostMapping("/{id}/approve")
@@ -57,8 +63,8 @@ public class ReportController {
     public ResponseEntity<ReportResponse> approveReport(
             @PathVariable("id") UUID id,
             Authentication authentication) {
-        UserDetailsImpl admin = (UserDetailsImpl) authentication.getPrincipal();
-        return ResponseEntity.ok(reportService.approveReport(id, admin.getId()));
+        AccountDetailsImpl admin = (AccountDetailsImpl) authentication.getPrincipal();
+        return ResponseEntity.ok(reportService.approveReport(id, admin.getAccountId()));
     }
 
     @PostMapping("/{id}/reject")
@@ -66,7 +72,7 @@ public class ReportController {
     public ResponseEntity<ReportResponse> rejectReport(
             @PathVariable("id") UUID id,
             Authentication authentication) {
-        UserDetailsImpl admin = (UserDetailsImpl) authentication.getPrincipal();
-        return ResponseEntity.ok(reportService.rejectReport(id, admin.getId()));
+        AccountDetailsImpl admin = (AccountDetailsImpl) authentication.getPrincipal();
+        return ResponseEntity.ok(reportService.rejectReport(id, admin.getAccountId()));
     }
 }

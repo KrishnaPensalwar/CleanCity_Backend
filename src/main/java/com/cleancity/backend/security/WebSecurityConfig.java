@@ -2,7 +2,7 @@ package com.cleancity.backend.security;
 
 import com.cleancity.backend.security.jwt.AuthEntryPointJwt;
 import com.cleancity.backend.security.jwt.AuthTokenFilter;
-import com.cleancity.backend.security.services.UserDetailsServiceImpl;
+import com.cleancity.backend.auth.security.AccountDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,7 +24,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class WebSecurityConfig {
 
     @Autowired
-    UserDetailsServiceImpl userDetailsService;
+    AccountDetailsService accountDetailsService;
 
     @Autowired
     private AuthEntryPointJwt unauthorizedHandler;
@@ -40,7 +40,7 @@ public class WebSecurityConfig {
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
     DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-    authProvider.setUserDetailsService(userDetailsService);
+    authProvider.setUserDetailsService(accountDetailsService);
     authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
@@ -61,7 +61,13 @@ public class WebSecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler).accessDeniedHandler(accessDeniedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> 
-                auth.requestMatchers("/auth/signup", "/auth/login", "/auth/refresh","/api/cities/**", "/test").permitAll()
+                auth.requestMatchers(
+                        "/auth/signup",
+                        "/auth/register/**",
+                        "/auth/login",
+                        "/auth/refresh",
+                        "/api/cities/**",
+                        "/test").permitAll()
                     .anyRequest().authenticated()
             );
 

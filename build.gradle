@@ -2,8 +2,6 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.3.4'
 	id 'io.spring.dependency-management' version '1.1.6'
-	id 'org.jetbrains.kotlin.jvm' version '1.9.25'
-	id 'org.jetbrains.kotlin.plugin.spring' version '1.9.25'
 }
 
 group = 'com.cleancity'
@@ -24,6 +22,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
@@ -32,7 +32,6 @@ dependencies {
 	implementation 'com.google.cloud:google-cloud-vision:3.34.0'
 	implementation 'io.github.cdimascio:dotenv-java:3.0.0'
 	implementation 'com.google.firebase:firebase-admin:9.7.0'
-	implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -42,15 +41,6 @@ tasks.withType(JavaCompile) {
 	options.release = 17
 }
 
-sourceSets {
-	main.kotlin.srcDirs += 'src/main/java'
-}
-
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-	exclude '**/device/**'
-	exclude '**/fcm/**'
-}
-
 bootRun {
 	systemProperty 'java.net.preferIPv4Stack', 'true'
 }
@@ -58,4 +48,3 @@ bootRun {
 tasks.named('test') {
 	useJUnitPlatform()
 }
-

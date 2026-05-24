@@ -18,7 +18,7 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    public CityRankResponse getCityRank(UUID currentUserId) {
+    public CityRankResponse getCityRank(UUID currentAccountId) {
         // Get top 5 users
         List<User> topUsersEntities = userRepository.findTop5ByOrderByRewardPointsDesc();
         
@@ -31,7 +31,7 @@ public class UserService {
                 .collect(Collectors.toList());
 
         // Get current user details
-        User currentUserEntity = userRepository.findById(currentUserId)
+        User currentUserEntity = userRepository.findByAccountId(currentAccountId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
         long currentUserRank = userRepository.getRankByRewardPoints(currentUserEntity.getRewardPoints());

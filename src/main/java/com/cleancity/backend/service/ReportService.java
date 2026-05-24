@@ -84,7 +84,7 @@ public class ReportService {
 
             UUID userUuid = UUID.fromString(userId);
 
-            userRepository.findById(userUuid).ifPresent(user -> {
+            userRepository.findByAccountId(userUuid).ifPresent(user -> {
 
                 int filed = user.getReportsFiled() != null
                         ? user.getReportsFiled()
@@ -97,7 +97,7 @@ public class ReportService {
 
         } catch (IllegalArgumentException e) {
 
-            userRepository.findByEmail(userId).ifPresent(user -> {
+            userRepository.findByAccountEmail(userId).ifPresent(user -> {
 
                 int filed = user.getReportsFiled() != null
                         ? user.getReportsFiled()
@@ -211,7 +211,7 @@ public class ReportService {
 
             UUID userUuid = UUID.fromString(report.getUserId());
 
-            userRepository.findById(userUuid).ifPresent(user -> {
+            userRepository.findByAccountId(userUuid).ifPresent(user -> {
 
                 int points = user.getRewardPoints() != null
                         ? user.getRewardPoints()
@@ -229,7 +229,7 @@ public class ReportService {
                 try {
 
                     userDeviceService
-                            .findActiveTokensForUser(user.getId().toString())
+                            .findActiveTokensForUser(user.getAccountId().toString())
                             .forEach(token -> {
 
                                 try {
@@ -258,7 +258,7 @@ public class ReportService {
 
         } catch (IllegalArgumentException e) {
 
-            userRepository.findByEmail(report.getUserId()).ifPresent(user -> {
+            userRepository.findByAccountEmail(report.getUserId()).ifPresent(user -> {
 
                 int points = user.getRewardPoints() != null
                         ? user.getRewardPoints()
@@ -308,12 +308,12 @@ public class ReportService {
 
             UUID userUuid = UUID.fromString(report.getUserId());
 
-            userRepository.findById(userUuid).ifPresent(user -> {
+            userRepository.findByAccountId(userUuid).ifPresent(user -> {
 
                 try {
 
                     userDeviceService
-                            .findActiveTokensForUser(user.getId().toString())
+                            .findActiveTokensForUser(user.getAccountId().toString())
                             .forEach(token -> {
 
                                 try {
@@ -342,12 +342,12 @@ public class ReportService {
 
         } catch (IllegalArgumentException e) {
 
-            userRepository.findByEmail(report.getUserId()).ifPresent(user -> {
+            userRepository.findByAccountEmail(report.getUserId()).ifPresent(user -> {
 
                 try {
 
                     userDeviceService
-                            .findActiveTokensForUser(user.getId().toString())
+                            .findActiveTokensForUser(user.getAccountId().toString())
                             .forEach(token -> {
 
                                 try {

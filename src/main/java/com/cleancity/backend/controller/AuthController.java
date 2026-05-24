@@ -1,215 +1,88 @@
 package com.cleancity.backend.controller;
 
-import com.cleancity.backend.dto.*;
-import com.cleancity.backend.entity.Driver;
-import com.cleancity.backend.entity.RefreshToken;
-import com.cleancity.backend.entity.User;
-import com.cleancity.backend.exception.ErrorCode;
-import com.cleancity.backend.exception.ErrorResponse;
-import com.cleancity.backend.repository.DriverRepository;
-import com.cleancity.backend.repository.UserRepository;
-import com.cleancity.backend.security.jwt.JwtUtils;
-import com.cleancity.backend.security.services.RefreshTokenService;
-import com.cleancity.backend.security.services.UserDetailsImpl;
+import com.cleancity.backend.auth.dto.*;
+import com.cleancity.backend.auth.security.AccountDetailsImpl;
+import com.cleancity.backend.auth.service.AuthService;
+import com.cleancity.backend.dto.LoginRequest;
+import com.cleancity.backend.dto.MessageResponse;
+import com.cleancity.backend.dto.SignupRequest;
+import com.cleancity.backend.dto.TokenRefreshRequest;
+import com.cleancity.backend.dto.TokenRefreshResponse;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class AuthController {
 
-    @Autowired
-    AuthenticationManager authenticationManager;
+    private final AuthService authService;
 
-    @Autowired
-    UserRepository userRepository;
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
 
-    @Autowired
-    PasswordEncoder encoder;
-
-    @Autowired
-    JwtUtils jwtUtils;
-
-    @Autowired
-    RefreshTokenService refreshTokenService;
-
-    @Autowired
-    private DriverRepository driverRepository;
-
+    /** @deprecated Use {@link #registerUser(RegisterUserRequest)} or {@link #registerDriver(RegisterDriverRequest)} */
+    @Deprecated
     @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(
-            @Valid @RequestBody SignupRequest signUpRequest) {
-
+    public ResponseEntity<MessageResponse> legacySignup(@Valid @RequestBody SignupRequest signUpRequest) {
         String role = signUpRequest.getRole();
-
-        if (role == null || role.trim().isEmpty()) {
-            role = "USER";
+        if (role != null && (role.equalsIgnoreCase("DRIVER") || role.equalsIgnoreCase("ROLE_DRIVER"))) {
+            RegisterDriverRequest request = new RegisterDriverRequest();
+            request.setName(signUpRequest.getName());
+            request.setEmail(signUpRequest.getEmail());
+            request.setPassword(signUpRequest.getPassword());
+            return ResponseEntity.ok(authService.registerDriver(request));
         }
 
-        role = role.trim().toUpperCase();
+        RegisterUserRequest request = new RegisterUserRequest();
+        request.setName(signUpRequest.getName());
+        request.setEmail(signUpRequest.getEmail());
+        request.setPassword(signUpRequest.getPassword());
+        return ResponseEntity.ok(authService.registerUser(request));
+    }
 
-        // =========================
-        // DRIVER SIGNUP
-        // =========================
-        if ("DRIVER".equals(role) || "ROLE_DRIVER".equals(role)) {
+    @PostMapping("/register/user")
+    public ResponseEntity<MessageResponse> registerUser(@Valid @RequestBody RegisterUserRequest request) {
+        return ResponseEntity.ok(authService.registerUser(request));
+    }
 
-            // check existing driver
-            if (driverRepository.findByEmail(signUpRequest.getEmail()).isPresent()) {
+    @PostMapping("/register/driver")
+    public ResponseEntity<MessageResponse> registerDriver(@Valid @RequestBody RegisterDriverRequest request) {
+        return ResponseEntity.ok(authService.registerDriver(request));
+    }
 
-                return ResponseEntity
-                        .badRequest()
-                        .body(new ErrorResponse(ErrorCode.DRIVER_EMAIL_EXISTS));
-            }
-
-            Driver driver = new Driver();
-
-            driver.setName(signUpRequest.getName());
-            driver.setEmail(signUpRequest.getEmail());
-
-            // optional
-            // driver.setPhone(signUpRequest.getPhone());
-            // driver.setVehicleNumber(signUpRequest.getVehicleNumber());
-
-            driverRepository.save(driver);
-
-            return ResponseEntity.ok(
-                    new MessageResponse(
-                            "Driver created successfully", true));
-        }
-
-        // =========================
-        // NORMAL USER SIGNUP
-        // =========================
-        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body(new ErrorResponse(ErrorCode.EMAIL_ALREADY_EXISTS));
-        }
-
-        User user = new User(
-                signUpRequest.getName(),
-                signUpRequest.getEmail(),
-                encoder.encode(signUpRequest.getPassword()));
-
-        user.setRole("ROLE_USER");
-        user.setReportsFiled(0);
-        user.setReportsResolved(0);
-
-        userRepository.save(user);
-
-        return ResponseEntity.ok(
-                new MessageResponse(
-                        "User created successfully", true));
+    @PostMapping("/convert-to-driver")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<MessageResponse> convertToDriver(
+            @Valid @RequestBody ConvertToDriverRequest request,
+            Authentication authentication) {
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+        return ResponseEntity.ok(authService.convertToDriver(account.getAccountId(), request));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-
-        String jwt = jwtUtils.generateJwtToken(authentication);
-
-        // Delete existing token if any (optional based on your session management,
-        // keeping it clean)
-        refreshTokenService.deleteByUserId(userDetails.getId());
-
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
-
-        // fetch user entity to include safe profile metadata
-        java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
-        com.cleancity.backend.entity.User u = userOpt.orElse(null);
-
-        UserDto userDto;
-        if (u != null) {
-            userDto = new UserDto(
-                    u.getId().toString(),
-                    u.getName(),
-                    u.getEmail(),
-                    u.getRole(),
-                    u.getRewardPoints(),
-                    u.getIsVerified(),
-                    u.getCreatedAt(),
-                    u.getUpdatedAt(),
-                    u.getReportsFiled(),
-                    u.getReportsResolved());
-        } else {
-            userDto = new UserDto(
-                    userDetails.getId().toString(),
-                    userDetails.getName(),
-                    userDetails.getEmail());
-        }
-
-        return ResponseEntity.ok(new AuthResponse(jwt, refreshToken.getToken(), userDto));
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
+        return ResponseEntity.ok(authService.login(loginRequest));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshtoken(@Valid @RequestBody TokenRefreshRequest request) {
-        String requestRefreshToken = request.getRefreshToken();
-
-        Optional<RefreshToken> tokenOpt = refreshTokenService.findByToken(requestRefreshToken);
-        if (tokenOpt.isPresent()) {
-            RefreshToken token = refreshTokenService.verifyExpiration(tokenOpt.get());
-            User user = token.getUser();
-            // delete the old refresh token to prevent reuse
-            refreshTokenService.deleteByToken(requestRefreshToken);
-            // create and return a new refresh token (rotation)
-            RefreshToken newRefresh = refreshTokenService.createRefreshToken(user.getId());
-            String jwtToken = jwtUtils.generateTokenFromEmail(user.getEmail());
-            return ResponseEntity.ok(new TokenRefreshResponse(jwtToken, newRefresh.getToken()));
-        } else {
-            return ResponseEntity.badRequest().body(new ErrorResponse(ErrorCode.REFRESH_TOKEN_INVALID));
-        }
+    public ResponseEntity<TokenRefreshResponse> refreshToken(@Valid @RequestBody TokenRefreshRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request.getRefreshToken()));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser(@Valid @RequestBody TokenRefreshRequest request) {
-        Optional<RefreshToken> token = refreshTokenService.findByToken(request.getRefreshToken());
-        if (token.isPresent()) {
-            refreshTokenService.deleteByUserId(token.get().getUser().getId());
-            return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
-        } else {
-            return ResponseEntity.badRequest().body(new ErrorResponse(ErrorCode.REFRESH_TOKEN_INVALID));
-        }
+    public ResponseEntity<MessageResponse> logout(@Valid @RequestBody TokenRefreshRequest request) {
+        return ResponseEntity.ok(authService.logout(request.getRefreshToken()));
     }
 
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
-        if (userOpt.isPresent()) {
-            com.cleancity.backend.entity.User u = userOpt.get();
-            return ResponseEntity.ok(new UserDto(
-                    u.getId().toString(),
-                    u.getName(),
-                    u.getEmail(),
-                    u.getRole(),
-                    u.getRewardPoints(),
-                    u.getIsVerified(),
-                    u.getCreatedAt(),
-                    u.getUpdatedAt(),
-                    u.getReportsFiled(),
-                    u.getReportsResolved()));
-        }
-        return ResponseEntity.ok(new UserDto(
-                userDetails.getId().toString(),
-                userDetails.getName(),
-                userDetails.getEmail()));
+    public ResponseEntity<MeResponse> getCurrentUser(Authentication authentication) {
+        AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+        return ResponseEntity.ok(authService.getMe(account.getAccountId()));
     }
 }
