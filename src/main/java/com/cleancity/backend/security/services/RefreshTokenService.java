@@ -1,6 +1,8 @@
 package com.cleancity.backend.security.services;
 
 import com.cleancity.backend.entity.RefreshToken;
+import com.cleancity.backend.exception.ApiException;
+import com.cleancity.backend.exception.ErrorCode;
 import com.cleancity.backend.repository.RefreshTokenRepository;
 import com.cleancity.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,7 +50,7 @@ public class RefreshTokenService {
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.getExpiry().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(token);
-            throw new RuntimeException("Refresh token was expired. Please make a new signin request");
+            throw new ApiException(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }
         return token;
     }

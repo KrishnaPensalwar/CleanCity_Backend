@@ -2,6 +2,8 @@ package com.cleancity.backend.service;
 
 import com.cleancity.backend.dto.ComplaintDetailsResponse;
 import com.cleancity.backend.entity.Report;
+import com.cleancity.backend.exception.ApiException;
+import com.cleancity.backend.exception.ErrorCode;
 import com.cleancity.backend.repository.ReportRepository;
 import com.cleancity.backend.security.services.UserDetailsImpl;
 import org.springframework.security.core.Authentication;
@@ -22,11 +24,11 @@ public class ComplaintService {
         try {
             complaintId = UUID.fromString(complaintIdStr);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("invalid complaint id");
+            throw new ApiException(ErrorCode.INVALID_COMPLAINT_ID);
         }
 
         Report report = reportRepository.findById(complaintId)
-                .orElseThrow(() -> new IllegalArgumentException("Complaint not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.COMPLAINT_NOT_FOUND));
 
         UserDetailsImpl user = (UserDetailsImpl) auth.getPrincipal();
 
@@ -35,7 +37,7 @@ public class ComplaintService {
 
         // Only allow if owner or admin
         if (!isAdmin && !user.getId().toString().equals(report.getUserId())) {
-            throw new SecurityException("Not authorized to access this complaint");
+            throw new ApiException(ErrorCode.NOT_AUTHORIZED);
         }
 
         ComplaintDetailsResponse dto = new ComplaintDetailsResponse();

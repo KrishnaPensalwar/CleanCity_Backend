@@ -19,6 +19,8 @@ public class ReportResponse {
     private String description;
     private LocalDateTime createdAt;
     private String completionImageUrl;
+    private UUID assignedDriverId;
+    private String assignedDriverName;
 
     public ReportResponse(Report report) {
         this.id = report.getId();
@@ -33,6 +35,10 @@ public class ReportResponse {
         this.description = report.getDescription();
         this.createdAt = report.getCreatedAt();
         this.completionImageUrl = report.getCompletionImageUrl();
+        if (report.getAssignedDriver() != null) {
+            this.assignedDriverId = report.getAssignedDriver().getId();
+            this.assignedDriverName = report.getAssignedDriver().getName();
+        }
     }
 
     public UUID getId() {
@@ -129,5 +135,21 @@ public class ReportResponse {
 
     public void setCompletionImageUrl(String completionImageUrl) {
         this.completionImageUrl = completionImageUrl;
+    }
+
+    public UUID getAssignedDriverId() {
+        return assignedDriverId;
+    }
+
+    public void setAssignedDriverId(UUID assignedDriverId) {
+        this.assignedDriverId = assignedDriverId;
+    }
+
+    public String getAssignedDriverName() {
+        return assignedDriverName;
+    }
+
+    public void setAssignedDriverName(String assignedDriverName) {
+        this.assignedDriverName = assignedDriverName;
     }
 }

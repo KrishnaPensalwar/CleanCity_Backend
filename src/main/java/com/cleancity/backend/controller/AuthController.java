@@ -4,6 +4,8 @@ import com.cleancity.backend.dto.*;
 import com.cleancity.backend.entity.Driver;
 import com.cleancity.backend.entity.RefreshToken;
 import com.cleancity.backend.entity.User;
+import com.cleancity.backend.exception.ErrorCode;
+import com.cleancity.backend.exception.ErrorResponse;
 import com.cleancity.backend.repository.DriverRepository;
 import com.cleancity.backend.repository.UserRepository;
 import com.cleancity.backend.security.jwt.JwtUtils;
@@ -14,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -66,8 +69,7 @@ public class AuthController {
 
                 return ResponseEntity
                         .badRequest()
-                        .body(new MessageResponse(
-                                "Driver email already exists!", false));
+                        .body(new ErrorResponse(ErrorCode.DRIVER_EMAIL_EXISTS));
             }
 
             Driver driver = new Driver();
@@ -93,8 +95,7 @@ public class AuthController {
 
             return ResponseEntity
                     .badRequest()
-                    .body(new MessageResponse(
-                            "Email is already in use!", false));
+                    .body(new ErrorResponse(ErrorCode.EMAIL_ALREADY_EXISTS));
         }
 
         User user = new User(
@@ -172,7 +173,7 @@ public class AuthController {
             String jwtToken = jwtUtils.generateTokenFromEmail(user.getEmail());
             return ResponseEntity.ok(new TokenRefreshResponse(jwtToken, newRefresh.getToken()));
         } else {
-            return ResponseEntity.badRequest().body(new MessageResponse("Refresh token is not in database!"));
+            return ResponseEntity.badRequest().body(new ErrorResponse(ErrorCode.REFRESH_TOKEN_INVALID));
         }
     }
 
@@ -183,16 +184,13 @@ public class AuthController {
             refreshTokenService.deleteByUserId(token.get().getUser().getId());
             return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
         } else {
-            return ResponseEntity.badRequest().body(new MessageResponse("Refresh token not found"));
+            return ResponseEntity.badRequest().body(new ErrorResponse(ErrorCode.REFRESH_TOKEN_INVALID));
         }
     }
 
     @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getCurrentUser(Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof UserDetailsImpl)) {
-            return ResponseEntity.status(401).body(new MessageResponse("Unauthorized"));
-        }
-
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
         java.util.Optional<com.cleancity.backend.entity.User> userOpt = userRepository.findById(userDetails.getId());
         if (userOpt.isPresent()) {

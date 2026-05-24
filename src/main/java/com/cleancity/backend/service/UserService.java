@@ -2,6 +2,8 @@ package com.cleancity.backend.service;
 
 import com.cleancity.backend.dto.CityRankResponse;
 import com.cleancity.backend.entity.User;
+import com.cleancity.backend.exception.ApiException;
+import com.cleancity.backend.exception.ErrorCode;
 import com.cleancity.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,7 +32,7 @@ public class UserService {
 
         // Get current user details
         User currentUserEntity = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
         long currentUserRank = userRepository.getRankByRewardPoints(currentUserEntity.getRewardPoints());
         

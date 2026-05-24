@@ -3,6 +3,9 @@ package com.cleancity.backend.service;
 import com.cleancity.backend.dto.ReportResponse;
 import com.cleancity.backend.entity.Driver;
 import com.cleancity.backend.entity.Report;
+import com.cleancity.backend.entity.ReportStatus;
+import com.cleancity.backend.exception.ApiException;
+import com.cleancity.backend.exception.ErrorCode;
 import com.cleancity.backend.repository.ReportAssignmentRepository;
 import com.cleancity.backend.repository.ReportRepository;
 import com.cleancity.backend.repository.UserRepository;
@@ -63,22 +66,30 @@ public class DriverService {
     @Transactional
     public ReportResponse assignReport(UUID reportId, UUID driverId) {
         Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.REPORT_NOT_FOUND));
+
+        if (report.getStatus() != ReportStatus.PENDING) {
+            throw new ApiException(ErrorCode.REPORT_NOT_PENDING);
+        }
+
         Driver driver = driverRepository.findById(driverId)
-                .orElseThrow(() -> new IllegalArgumentException("Driver not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.DRIVER_NOT_FOUND));
+
+        if (Boolean.FALSE.equals(driver.getIsActive())) {
+            throw new ApiException(ErrorCode.DRIVER_INACTIVE);
+        }
 
         report.setAssignedDriver(driver);
-        report.setStatus(com.cleancity.backend.entity.ReportStatus.ASSIGNED);
+        report.setStatus(ReportStatus.ASSIGNED);
         report.setAssignedAt(LocalDateTime.now());
-        
+
         reportRepository.save(report);
 
-        // create assignment audit
         com.cleancity.backend.entity.ReportAssignment a = new com.cleancity.backend.entity.ReportAssignment();
         a.setReportId(reportId);
         a.setAction("ASSIGNED");
         a.setActorDriverId(driverId);
-        a.setNotes("Assigned via Admin Dashboard");
+        a.setNotes("Assigned to driver");
         assignmentRepository.save(a);
 
         return new ReportResponse(report);
@@ -97,12 +108,12 @@ public class DriverService {
     @Transactional
     public ReportResponse completeReport(UUID reportId, UUID driverId, String action, String notes) {
         Report r = reportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.REPORT_NOT_FOUND));
         if (r.getAssignedDriver() == null || !r.getAssignedDriver().getId().equals(driverId)) {
-            throw new SecurityException("You don't have permission to perform this action");
+            throw new ApiException(ErrorCode.ACCESS_DENIED);
         }
-        if (r.getStatus() != com.cleancity.backend.entity.ReportStatus.ASSIGNED) {
-            throw new IllegalStateException("Report not in ASSIGNED state");
+        if (r.getStatus() != ReportStatus.ASSIGNED) {
+            throw new ApiException(ErrorCode.REPORT_NOT_ASSIGNED);
         }
         if ("APPROVED".equalsIgnoreCase(action)) {
             r.setStatus(com.cleancity.backend.entity.ReportStatus.APPROVED);
@@ -141,12 +152,12 @@ public class DriverService {
     public ReportResponse uploadCompletionPhoto(UUID reportId, UUID driverId,
             org.springframework.web.multipart.MultipartFile image) throws java.io.IOException {
         Report r = reportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.REPORT_NOT_FOUND));
         if (r.getAssignedDriver() == null || !r.getAssignedDriver().getId().equals(driverId)) {
-            throw new SecurityException("You don't have permission to perform this action");
+            throw new ApiException(ErrorCode.ACCESS_DENIED);
         }
-        if (r.getStatus() != com.cleancity.backend.entity.ReportStatus.ASSIGNED) {
-            throw new IllegalStateException("Report not in ASSIGNED state");
+        if (r.getStatus() != ReportStatus.ASSIGNED) {
+            throw new ApiException(ErrorCode.REPORT_NOT_ASSIGNED);
         }
 
         String imageUrl = s3StorageService.uploadFile(image);

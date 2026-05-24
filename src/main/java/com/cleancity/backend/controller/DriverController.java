@@ -1,5 +1,7 @@
 package com.cleancity.backend.controller;
 
+import com.cleancity.backend.exception.ApiException;
+import com.cleancity.backend.exception.ErrorCode;
 import com.cleancity.backend.security.services.UserDetailsImpl;
 import com.cleancity.backend.service.DriverService;
 import com.cleancity.backend.dto.AssignDriverRequest;
@@ -19,10 +21,6 @@ public class DriverController {
     public DriverController(DriverService driverService) {
         this.driverService = driverService;
     }
-
-    // =========================
-    // 🚗 DRIVER MANAGEMENT APIs (ADMIN)
-    // =========================
 
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN')")
@@ -48,10 +46,6 @@ public class DriverController {
         return ResponseEntity.ok(driverService.getTopDrivers());
     }
 
-    // =========================
-    // 📍 REPORT APIs (DRIVER + ADMIN)
-    // =========================
-
     @GetMapping("/reports/nearby")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> nearby(
@@ -69,31 +63,25 @@ public class DriverController {
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> assign(
             @PathVariable("id") UUID reportId,
-            @RequestBody AssignDriverRequest request,
+            @RequestBody(required = false) AssignDriverRequest request,
             Authentication authentication) {
 
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
         UUID driverId;
-        
+
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
 
         if (isAdmin) {
-            if (request.getDriverId() == null) {
-                return ResponseEntity.badRequest().body(Map.of("message", "driverId required for admin assignment"));
+            if (request == null || request.getDriverId() == null) {
+                throw new ApiException(ErrorCode.DRIVER_ID_REQUIRED);
             }
             driverId = request.getDriverId();
         } else {
             driverId = user.getId();
         }
 
-        try {
-            return ResponseEntity.ok(driverService.assignReport(reportId, driverId));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(400).body(Map.of("message", e.getMessage()));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(409).body(Map.of("message", e.getMessage()));
-        }
+        return ResponseEntity.ok(driverService.assignReport(reportId, driverId));
     }
 
     @GetMapping("/reports/assigned")
@@ -104,37 +92,26 @@ public class DriverController {
                 driverService.getAssigned(user.getId())
         );
     }
-@PostMapping("/reports/{id}/completion-photo")
-@PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
+
+    @PostMapping("/reports/{id}/completion-photo")
+    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> uploadCompletionPhoto(
-        @PathVariable("id") String idStr,
-        @RequestParam("image") org.springframework.web.multipart.MultipartFile image,
-        Authentication authentication) {
+            @PathVariable("id") String idStr,
+            @RequestParam("image") org.springframework.web.multipart.MultipartFile image,
+            Authentication authentication) throws java.io.IOException {
 
-    UUID id;
-    try {
-        id = UUID.fromString(idStr);
-    } catch (IllegalArgumentException iae) {
-        return ResponseEntity.badRequest().body(Map.of("message", "invalid report id"));
-    }
+        UUID id;
+        try {
+            id = UUID.fromString(idStr);
+        } catch (IllegalArgumentException iae) {
+            throw new ApiException(ErrorCode.INVALID_REPORT_ID);
+        }
 
-    UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-
-    try {
+        UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
         return ResponseEntity.ok(
                 driverService.uploadCompletionPhoto(id, user.getId(), image)
         );
-    } catch (SecurityException se) {
-        return ResponseEntity.status(403)
-                .body(Map.of("message", se.getMessage()));
-    } catch (IllegalArgumentException ie) {
-        return ResponseEntity.status(400)
-                .body(Map.of("message", ie.getMessage()));
-    } catch (Exception e) {
-        return ResponseEntity.status(500)
-                .body(Map.of("message", e.getMessage()));
     }
-}
 
     @GetMapping("/reports/profile")
     @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
@@ -147,8 +124,9 @@ public class DriverController {
     }
 
     @PostMapping("/reports/{id}/complete")
+    @PreAuthorize("hasRole('DRIVER') or hasRole('ADMIN')")
     public ResponseEntity<?> complete(
-        @PathVariable("id") String idStr,
+            @PathVariable("id") String idStr,
             @RequestBody Map<String, Object> body,
             Authentication authentication) {
 
@@ -156,7 +134,7 @@ public class DriverController {
         try {
             id = UUID.fromString(idStr);
         } catch (IllegalArgumentException iae) {
-            return ResponseEntity.badRequest().body(Map.of("message", "invalid report id"));
+            throw new ApiException(ErrorCode.INVALID_REPORT_ID);
         }
 
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
@@ -164,24 +142,12 @@ public class DriverController {
         String action = (String) body.getOrDefault("action", "APPROVED");
         String notes = (String) body.getOrDefault("notes", null);
 
-        try {
-            if ("APPROVED".equalsIgnoreCase(action)) {
-                return ResponseEntity.status(403).body(
-                        Map.of("message",
-                                "Drivers cannot approve reports. Request admin approval.")
-                );
-            }
-
-            return ResponseEntity.ok(
-                    driverService.completeReport(id, user.getId(), action, notes)
-            );
-
-        } catch (SecurityException e) {
-            return ResponseEntity.status(403)
-                    .body(Map.of("message", e.getMessage()));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(409)
-                    .body(Map.of("message", e.getMessage()));
+        if ("APPROVED".equalsIgnoreCase(action)) {
+            throw new ApiException(ErrorCode.DRIVER_CANNOT_APPROVE);
         }
+
+        return ResponseEntity.ok(
+                driverService.completeReport(id, user.getId(), action, notes)
+        );
     }
 }

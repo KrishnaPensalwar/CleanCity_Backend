@@ -18,7 +18,7 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
     List<Report> findByUserId(String userId);
 
     @Modifying
-    @Query(value = "UPDATE reports SET assigned_driver_id = :driverId, assigned_at = now(), status = 'ASSIGNED', updated_at = now() WHERE id = :reportId AND status = 'PENDING' AND assigned_driver_id IS NULL", nativeQuery = true)
+    @Query(value = "UPDATE reports SET driver_id = :driverId, assigned_at = now(), status = 'ASSIGNED', updated_at = now() WHERE id = :reportId AND status = 'PENDING' AND driver_id IS NULL", nativeQuery = true)
     int assignIfPending(@Param("reportId") UUID reportId, @Param("driverId") UUID driverId);
 
     @Query(value = "SELECT id, latitude, longitude, (6371000 * acos(cos(radians(:lat)) * cos(radians(latitude)) * cos(radians(longitude) - radians(:lon)) + sin(radians(:lat)) * sin(radians(latitude)))) AS distance_m FROM reports WHERE status = 'PENDING' AND latitude BETWEEN :minLat AND :maxLat AND longitude BETWEEN :minLon AND :maxLon ORDER BY distance_m LIMIT :limit", nativeQuery = true)

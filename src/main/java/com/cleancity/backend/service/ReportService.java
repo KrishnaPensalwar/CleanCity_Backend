@@ -4,8 +4,12 @@ import com.cleancity.backend.device.UserDeviceService;
 import com.cleancity.backend.dto.MLValidationResult;
 import com.cleancity.backend.dto.ReportResponse;
 import com.cleancity.backend.entity.Report;
+import com.cleancity.backend.entity.ReportAssignment;
 import com.cleancity.backend.entity.ReportStatus;
+import com.cleancity.backend.exception.ApiException;
+import com.cleancity.backend.exception.ErrorCode;
 import com.cleancity.backend.fcm.FcmService;
+import com.cleancity.backend.repository.ReportAssignmentRepository;
 import com.cleancity.backend.repository.ReportRepository;
 import com.cleancity.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -21,6 +25,7 @@ import java.util.stream.Collectors;
 public class ReportService {
 
     private final ReportRepository reportRepository;
+    private final ReportAssignmentRepository assignmentRepository;
     private final UserRepository userRepository;
     private final S3StorageService s3StorageService;
     private final MLValidationService mlValidationService;
@@ -29,6 +34,7 @@ public class ReportService {
 
     public ReportService(
             ReportRepository reportRepository,
+            ReportAssignmentRepository assignmentRepository,
             UserRepository userRepository,
             S3StorageService s3StorageService,
             MLValidationService mlValidationService,
@@ -36,6 +42,7 @@ public class ReportService {
             FcmService fcmService
     ) {
         this.reportRepository = reportRepository;
+        this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
         this.s3StorageService = s3StorageService;
         this.mlValidationService = mlValidationService;
@@ -171,27 +178,32 @@ public class ReportService {
                 .collect(Collectors.toList());
     }
 
-    public ReportResponse approveReport(UUID id) {
+    public ReportResponse approveReport(UUID id, UUID adminUserId) {
 
         Report report = reportRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Report not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.REPORT_NOT_FOUND));
 
         if (report.getStatus() != ReportStatus.AWAITING_REVIEW) {
-            throw new IllegalArgumentException(
-                    "Report is not awaiting review"
-            );
+            throw new ApiException(ErrorCode.REPORT_NOT_AWAITING_REVIEW);
         }
 
         if (report.getCompletionImageUrl() == null) {
-            throw new IllegalArgumentException(
-                    "Completion image is missing. Cannot approve."
-            );
+            throw new ApiException(ErrorCode.COMPLETION_IMAGE_MISSING);
         }
 
         report.setStatus(ReportStatus.APPROVED);
+        if (report.getCompletedAt() == null) {
+            report.setCompletedAt(LocalDateTime.now());
+        }
 
         report = reportRepository.save(report);
+
+        ReportAssignment audit = new ReportAssignment();
+        audit.setReportId(id);
+        audit.setAction("APPROVED");
+        audit.setActorUserId(adminUserId);
+        audit.setNotes("Approved by admin");
+        assignmentRepository.save(audit);
 
         final Report finalReport = report;
 
@@ -266,21 +278,29 @@ public class ReportService {
         return new ReportResponse(report);
     }
 
-    public ReportResponse rejectReport(UUID id) {
+    public ReportResponse rejectReport(UUID id, UUID adminUserId) {
 
         Report report = reportRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Report not found"));
+                .orElseThrow(() -> new ApiException(ErrorCode.REPORT_NOT_FOUND));
 
         if (report.getStatus() == ReportStatus.APPROVED) {
-            throw new IllegalArgumentException(
-                    "Approved report cannot be rejected"
-            );
+            throw new ApiException(ErrorCode.REPORT_ALREADY_APPROVED);
+        }
+
+        if (report.getStatus() != ReportStatus.AWAITING_REVIEW) {
+            throw new ApiException(ErrorCode.REPORT_NOT_AWAITING_REVIEW);
         }
 
         report.setStatus(ReportStatus.REJECTED);
 
         report = reportRepository.save(report);
+
+        ReportAssignment audit = new ReportAssignment();
+        audit.setReportId(id);
+        audit.setAction("REJECTED");
+        audit.setActorUserId(adminUserId);
+        audit.setNotes("Rejected by admin");
+        assignmentRepository.save(audit);
 
         final Report finalReport = report;
 
@@ -289,14 +309,6 @@ public class ReportService {
             UUID userUuid = UUID.fromString(report.getUserId());
 
             userRepository.findById(userUuid).ifPresent(user -> {
-
-                int resolved = user.getReportsResolved() != null
-                        ? user.getReportsResolved()
-                        : 0;
-
-                user.setReportsResolved(resolved + 1);
-
-                userRepository.save(user);
 
                 try {
 
@@ -332,13 +344,34 @@ public class ReportService {
 
             userRepository.findByEmail(report.getUserId()).ifPresent(user -> {
 
-                int resolved = user.getReportsResolved() != null
-                        ? user.getReportsResolved()
-                        : 0;
+                try {
 
-                user.setReportsResolved(resolved + 1);
+                    userDeviceService
+                            .findActiveTokensForUser(user.getId().toString())
+                            .forEach(token -> {
 
-                userRepository.save(user);
+                                try {
+
+                                    fcmService.sendNotification(
+                                            token,
+                                            "Complaint Rejected",
+                                            "Your complaint was rejected.",
+                                            java.util.Map.of(
+                                                    "reportId",
+                                                    finalReport.getId().toString()
+                                            )
+                                    );
+
+                                } catch (Exception ex) {
+
+                                    // ignore token errors
+                                }
+                            });
+
+                } catch (Exception ex) {
+
+                    // ignore notification errors
+                }
             });
         }
 
