@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtils {
 
-    @Value("${app.jwtSecret:4f4d2f8016467389a9f4c3ecf52d5b62b083b4b60098f489f6b98ea6fbd4b6dc}")
+    @Value("${app.jwtSecret}")
     private String jwtSecret;
 
     @Value("${app.jwtExpirationMs:900000}")
