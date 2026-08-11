@@ -1,4 +1,5 @@
-name: Build Backend
+```yaml
+name: Build and Push Backend to Cloudflare
 
 on:
   push:
@@ -6,9 +7,15 @@ on:
       - cloudflare-migration
   workflow_dispatch:
 
+env:
+  IMAGE_NAME: cleancity-backend
+
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -20,8 +27,34 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Build Spring Boot
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Build Spring Boot JAR
         run: ./gradlew clean bootJar
 
+      - name: Log in to Cloudflare Container Registry
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "$CLOUDFLARE_API_TOKEN" | docker login \
+            cloudchamber.cloudflare.com \
+            --username "$CLOUDFLARE_ACCOUNT_ID" \
+            --password-stdin
+
       - name: Build Docker image
-        run: docker build -t cleancity-backend .
+        run: |
+          docker build \
+            -t cloudchamber.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -t cloudchamber.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{ env.IMAGE_NAME }}:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push \
+            cloudchamber.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+          docker push \
+            cloudchamber.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{ env.IMAGE_NAME }}:latest
+```
