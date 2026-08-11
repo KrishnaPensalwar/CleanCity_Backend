@@ -55,4 +55,3 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           wrangler containers push ${{ env.IMAGE_NAME }}:${{ github.sha }}
-```
