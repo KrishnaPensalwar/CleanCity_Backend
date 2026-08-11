@@ -174,6 +174,11 @@ public class AuthService {
         refreshToken = refreshTokenService.verifyExpiration(refreshToken);
         Account account = refreshToken.getAccount();
 
+        if (account.getStatus() != AccountStatus.ACTIVE) {
+            refreshTokenService.deleteByAccountId(account.getId());
+            throw new ApiException(ErrorCode.ACCOUNT_INACTIVE);
+        }
+
         refreshTokenService.deleteByToken(refreshTokenValue);
         RefreshToken newRefresh = refreshTokenService.createRefreshToken(account.getId());
         String accessToken = jwtUtils.generateTokenFromAccount(account);

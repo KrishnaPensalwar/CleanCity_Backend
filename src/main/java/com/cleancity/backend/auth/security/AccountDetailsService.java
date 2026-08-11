@@ -23,9 +23,9 @@ public class AccountDetailsService implements UserDetailsService {
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         Account account = accountRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("Account not found: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("Account not found"));
 
-        if (account.getStatus() == com.cleancity.backend.auth.domain.AccountStatus.INACTIVE) {
+        if (account.getStatus() != com.cleancity.backend.auth.domain.AccountStatus.ACTIVE) {
             throw new ApiException(ErrorCode.ACCOUNT_INACTIVE);
         }
 

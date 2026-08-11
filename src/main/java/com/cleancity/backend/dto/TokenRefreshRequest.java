@@ -3,7 +3,7 @@ package com.cleancity.backend.dto;
 import jakarta.validation.constraints.NotBlank;
 
 public class TokenRefreshRequest {
-    @NotBlank
+    @NotBlank(message = "Refresh token is required")
     private String refreshToken;
 
     public String getRefreshToken() { return refreshToken; }

@@ -235,27 +235,37 @@ flowchart LR
 
 All errors return a consistent JSON structure:
 
+Standard error body:
+
 ```json
 {
-  "code": "REPORT_NOT_FOUND",
-  "message": "Report not found",
+  "isSuccess": false,
   "status": 404,
-  "timestamp": "2026-07-05T17:45:00"
+  "errorCode": "REPORT_001",
+  "error": "Report Not Found",
+  "message": "No report was found for the given ID.",
+  "timestamp": "2026-08-11T12:10:00.123Z",
+  "path": "/api/reports/..."
 }
 ```
 
-| Error Code | HTTP Status | Meaning |
-|-----------|------------|---------|
-| `AUTH_001` | 401 | Unauthorized / invalid token |
-| `AUTH_002` | 403 | Forbidden / insufficient role |
-| `AUTH_003` | 409 | Email already registered |
-| `REPORT_NOT_FOUND` | 404 | Report does not exist |
-| `REPORT_ALREADY_APPROVED` | 409 | Report already approved |
-| `REPORT_NOT_AWAITING_REVIEW` | 409 | Report not in correct state |
-| `DRIVER_NOT_FOUND` | 404 | Driver profile not found |
-| `DRIVER_ID_REQUIRED` | 400 | Admin must provide driverId |
-| `INVALID_REPORT_ID` | 400 | Malformed UUID |
-| `DRIVER_CANNOT_APPROVE` | 403 | Drivers cannot approve reports |
+| Error Code | HTTP | Title | Message |
+|-----------|------|-------|---------|
+| `AUTH_001` | 401 | Unauthorized | Authentication is required. Please sign in and send a valid Bearer token. |
+| `AUTH_002` | 401 | Invalid Credentials | The email or password you entered is incorrect. Please try again. |
+| `AUTH_003` | 403 | Access Denied | You do not have permission to perform this action. |
+| `AUTH_004` | 401 | Invalid Refresh Token | The refresh token is invalid or has already been used. Please sign in again. |
+| `AUTH_005` | 401 | Refresh Token Expired | Your session has expired. Please sign in again. |
+| `AUTH_006` | 409 | Email Already Registered | An account with this email already exists. |
+| `AUTH_007` | 409 | Phone Already Registered | An account with this phone number already exists. |
+| `AUTH_008` | 403 | Account Inactive | This account is inactive, suspended, or pending activation. |
+| `REPORT_001` | 404 | Report Not Found | No report was found for the given ID. |
+| `REPORT_003` | 409 | Report Not Awaiting Review | Report is not awaiting admin review. |
+| `DRIVER_001` | 404 | Driver Not Found | No driver profile was found for this account. |
+| `DRIVER_003` | 400 | Driver ID Required | Admin assignment requires a driverId in the request body. |
+| `DRIVER_004` | 403 | Driver Cannot Approve | Drivers cannot approve reports. |
+| `VALID_001` | 400 | Validation Failed | One or more request fields are invalid. |
+| `SYS_001` | 500 | Internal Server Error | Something went wrong on our side. |
 
 ---
 

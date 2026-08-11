@@ -2,21 +2,26 @@ package com.cleancity.backend.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class SignupRequest {
 
-    @NotBlank
-    @Size(min = 2, max = 100)
+    @NotBlank(message = "Name is required")
+    @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
     private String name;
 
-    @NotBlank
-    @Size(max = 100)
-    @Email
+    @NotBlank(message = "Email is required")
+    @Size(max = 100, message = "Email must be at most 100 characters")
+    @Email(message = "Email must be a valid email address")
     private String email;
 
-    @NotBlank
-    @Size(min = 6, max = 50)
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, max = 72, message = "Password must be 8-72 characters")
+    @Pattern(
+            regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$",
+            message = "Password must contain at least one letter and one number"
+    )
     private String password;
     private String role;
 

@@ -28,10 +28,9 @@ public class ReportController {
             @ModelAttribute com.cleancity.backend.dto.ReportRequestDto reportRequest,
             Authentication authentication) throws java.io.IOException {
 
+        // Always bind the report to the authenticated account — never trust client-supplied userId (IDOR).
         AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
-        String accountId = reportRequest.getUserId() != null && !reportRequest.getUserId().isBlank()
-                ? reportRequest.getUserId()
-                : account.getAccountId().toString();
+        String accountId = account.getAccountId().toString();
 
         ReportResponse response = reportService.createReport(
                 reportRequest.getImage(),

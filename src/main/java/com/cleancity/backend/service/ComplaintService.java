@@ -36,7 +36,7 @@ public class ComplaintService {
                 .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
 
         if (!isAdmin && !account.getAccountId().toString().equals(report.getUserId())) {
-            throw new ApiException(ErrorCode.NOT_AUTHORIZED);
+            throw new ApiException(ErrorCode.ACCESS_DENIED);
         }
 
         ComplaintDetailsResponse dto = new ComplaintDetailsResponse();
