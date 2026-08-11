@@ -1,4 +1,3 @@
-```yaml
 name: Build and Push Backend to Cloudflare
 
 on:
