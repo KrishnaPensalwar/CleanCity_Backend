@@ -37,6 +37,7 @@ public class RefreshTokenService {
         refreshTokenRepository.findByToken(token).ifPresent(refreshTokenRepository::delete);
     }
 
+    @Transactional
     public RefreshToken createRefreshToken(UUID accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
@@ -49,6 +50,7 @@ public class RefreshTokenService {
         return refreshTokenRepository.save(refreshToken);
     }
 
+    @Transactional
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.getExpiry().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(token);
