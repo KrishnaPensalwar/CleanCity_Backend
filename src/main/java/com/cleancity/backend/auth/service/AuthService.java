@@ -137,7 +137,7 @@ public class AuthService {
         return new MessageResponse("Account upgraded to driver successfully", true);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
