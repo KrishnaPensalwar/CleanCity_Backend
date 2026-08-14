@@ -2,11 +2,13 @@ package com.cleancity.backend.security.jwt;
 
 import com.cleancity.backend.auth.domain.Account;
 import com.cleancity.backend.auth.domain.RoleType;
-import com.cleancity.backend.auth.repository.AccountRepository;
 import com.cleancity.backend.auth.security.AccountDetailsImpl;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
@@ -20,16 +22,20 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtils {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtUtils.class);
+    private static final int MIN_SECRET_BYTES = 32;
+
     @Value("${app.jwtSecret}")
     private String jwtSecret;
 
     @Value("${app.jwtExpirationMs:900000}")
     private int jwtExpirationMs;
 
-    private final AccountRepository accountRepository;
+    private Key signingKey;
 
-    public JwtUtils(AccountRepository accountRepository) {
-        this.accountRepository = accountRepository;
+    @PostConstruct
+    void initSigningKey() {
+        this.signingKey = resolveKey(jwtSecret);
     }
 
     public String generateJwtToken(Authentication authentication) {
@@ -44,7 +50,7 @@ public class JwtUtils {
                 .claim("roles", roles)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(key(), SignatureAlgorithm.HS256)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }
 
@@ -59,44 +65,42 @@ public class JwtUtils {
                 .claim("roles", roles)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(key(), SignatureAlgorithm.HS256)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    /** @deprecated Use {@link #generateTokenFromAccount(Account)} */
-    @Deprecated
-    public String generateTokenFromEmail(String email) {
-        return accountRepository.findByEmail(email)
-                .map(this::generateTokenFromAccount)
-                .orElseGet(() -> Jwts.builder()
-                        .setSubject(email)
-                        .setIssuedAt(new Date())
-                        .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                        .signWith(key(), SignatureAlgorithm.HS256)
-                        .compact());
-    }
-
-    private Key key() {
-        try {
-            return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
-        } catch (IllegalArgumentException e) {
-            byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-            return Keys.hmacShaKeyFor(keyBytes);
+    private Key resolveKey(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET is required and must be at least 32 bytes");
         }
+
+        byte[] keyBytes;
+        try {
+            keyBytes = Decoders.BASE64.decode(secret);
+        } catch (IllegalArgumentException e) {
+            keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        }
+
+        if (keyBytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must be at least 32 bytes (256 bits). Generate with: openssl rand -base64 32");
+        }
+
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String getEmailFromJwtToken(String token) {
-        return Jwts.parserBuilder().setSigningKey(key()).build()
+        return Jwts.parserBuilder().setSigningKey(signingKey).build()
                 .parseClaimsJws(token).getBody().getSubject();
     }
 
     public boolean validateJwtToken(String authToken) {
         try {
-            Jwts.parserBuilder().setSigningKey(key()).build().parse(authToken);
+            Jwts.parserBuilder().setSigningKey(signingKey).build().parse(authToken);
             return true;
         } catch (MalformedJwtException | IllegalArgumentException | SignatureException
                  | ExpiredJwtException | UnsupportedJwtException e) {
-            System.err.println("Invalid JWT Token: " + e.getMessage());
+            log.debug("Invalid JWT: {}", e.getMessage());
         }
         return false;
     }

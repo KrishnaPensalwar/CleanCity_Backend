@@ -211,21 +211,29 @@ Roles in JWT map to `ROLE_USER`, `ROLE_DRIVER`, `ROLE_ADMIN` authorities.
 
 ## 12. Example API Responses
 
-**Duplicate email (400)**
+**Duplicate email (409)**
 ```json
 {
+  "isSuccess": false,
+  "status": 409,
   "errorCode": "AUTH_006",
-  "message": "Email is already in use.",
-  "isSuccess": false
+  "error": "Email Already Registered",
+  "message": "An account with this email already exists. Try signing in or use a different email.",
+  "timestamp": "2026-08-11T12:10:00.123Z",
+  "path": "/auth/register/user"
 }
 ```
 
 **Invalid credentials (401)**
 ```json
 {
+  "isSuccess": false,
+  "status": 401,
   "errorCode": "AUTH_002",
-  "message": "Invalid email or password.",
-  "isSuccess": false
+  "error": "Invalid Credentials",
+  "message": "The email or password you entered is incorrect. Please try again.",
+  "timestamp": "2026-08-11T12:10:00.123Z",
+  "path": "/auth/login"
 }
 ```
 
@@ -297,3 +305,4 @@ Flyway scripts (run automatically on startup):
 | POST | `/auth/refresh` | Public |
 | POST | `/auth/logout` | Public |
 | GET | `/auth/me` | Authenticated |
+| PUT | `/api/users/me` | Authenticated — update name, address, phone, profileImage |

@@ -1,10 +1,11 @@
 ### 1. Signup / Register a new user
-POST http://localhost:8080/auth/signup
+POST http://localhost:8080/auth/register/user
 Content-Type: application/json
 
 {
   "name": "Jane Doe",
   "email": "jane@example.com",
+  "phone": "+919876543210",
   "password": "mySecurePassword123"
 }
 
@@ -21,7 +22,7 @@ Content-Type: application/json
 
 > {%
 // Automatically capture the tokens if using IntelliJ HTTP Client or VSCode REST Client
-client.global.set("auth_token", response.body.accessToken);
+client.global.set("auth_token", response.body.token);
 client.global.set("refresh_token", response.body.refreshToken);
 %}
 
@@ -33,7 +34,21 @@ Authorization: Bearer {{auth_token}}
 
 ###
 
-### 4. Refresh Token
+### 4. Update Profile
+PUT http://localhost:8080/api/users/me
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "name": "Jane D.",
+  "address": "12 MG Road, Pune",
+  "phone": "+919876543210",
+  "profileImage": "https://cleancity-reports.s3.ap-south-1.amazonaws.com/uploads/avatar.jpg"
+}
+
+###
+
+### 5. Refresh Token
 POST http://localhost:8080/auth/refresh
 Content-Type: application/json
 
@@ -48,7 +63,7 @@ client.global.set("auth_token", response.body.accessToken);
 
 ###
 
-### 5. Logout
+### 6. Logout
 POST http://localhost:8080/auth/logout
 Content-Type: application/json
 
@@ -58,7 +73,7 @@ Content-Type: application/json
 
 ###
 
-### 6. Upload Image Report
+### 7. Upload Image Report
 POST http://localhost:8080/api/reports
 Authorization: Bearer {{auth_token}}
 Content-Type: multipart/form-data; boundary=WebAppBoundary
@@ -68,10 +83,6 @@ Content-Disposition: form-data; name="image"; filename="test_image.jpg"
 Content-Type: image/jpeg
 
 < ./test_image.jpg
---WebAppBoundary
-Content-Disposition: form-data; name="userId"
-
-12345
 --WebAppBoundary
 Content-Disposition: form-data; name="timestamp"
 

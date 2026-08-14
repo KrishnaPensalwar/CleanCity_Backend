@@ -59,12 +59,17 @@ public class ReportService {
             String description
     ) throws IOException {
 
-        validateInputs(image, timestamp, latitude, longitude);
+        validateInputs(image, timestamp, latitude, longitude, description);
+
+        byte[] imageBytes = image.getBytes();
+        if (!hasValidImageMagicBytes(imageBytes)) {
+            throw new ApiException(ErrorCode.INVALID_IMAGE_CONTENT);
+        }
 
         String imageUrl = s3StorageService.uploadFile(image);
 
         MLValidationResult mlResult =
-                mlValidationService.validateImage(image.getBytes());
+                mlValidationService.validateImage(imageBytes);
 
         ReportStatus status = ReportStatus.PENDING;
 
@@ -116,32 +121,36 @@ public class ReportService {
             MultipartFile image,
             Long timestamp,
             Double latitude,
-            Double longitude
+            Double longitude,
+            String description
     ) {
 
         if (image == null || image.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Image file is missing or empty."
-            );
+            throw new ApiException(ErrorCode.IMAGE_REQUIRED);
+        }
+
+        if (image.getSize() > 5 * 1024 * 1024L) {
+            throw new ApiException(ErrorCode.FILE_TOO_LARGE);
         }
 
         String contentType = image.getContentType();
 
         if (contentType == null ||
-                (!contentType.equals("image/jpeg")
-                        && !contentType.equals("image/png"))) {
+                (!contentType.equalsIgnoreCase("image/jpeg")
+                        && !contentType.equalsIgnoreCase("image/png"))) {
+            throw new ApiException(ErrorCode.INVALID_IMAGE_TYPE);
+        }
 
-            throw new IllegalArgumentException(
-                    "Only JPEG and PNG images are allowed."
-            );
+        if (description != null && description.length() > 2000) {
+            throw new ApiException(ErrorCode.DESCRIPTION_TOO_LONG);
         }
 
         if (latitude == null || latitude < -90 || latitude > 90) {
-            throw new IllegalArgumentException("Invalid latitude value.");
+            throw new ApiException(ErrorCode.INVALID_LATITUDE);
         }
 
         if (longitude == null || longitude < -180 || longitude > 180) {
-            throw new IllegalArgumentException("Invalid longitude value.");
+            throw new ApiException(ErrorCode.INVALID_LONGITUDE);
         }
 
         long currentTime = System.currentTimeMillis();
@@ -149,9 +158,27 @@ public class ReportService {
         if (timestamp == null ||
                 timestamp > currentTime ||
                 timestamp < (currentTime - 31536000000L)) {
-
-            throw new IllegalArgumentException("Invalid timestamp.");
+            throw new ApiException(ErrorCode.INVALID_TIMESTAMP);
         }
+    }
+
+    private boolean hasValidImageMagicBytes(byte[] data) {
+        if (data == null || data.length < 3) {
+            return false;
+        }
+        boolean jpeg = (data[0] & 0xFF) == 0xFF
+                && (data[1] & 0xFF) == 0xD8
+                && (data[2] & 0xFF) == 0xFF;
+        boolean png = data.length >= 8
+                && (data[0] & 0xFF) == 0x89
+                && data[1] == 0x50
+                && data[2] == 0x4E
+                && data[3] == 0x47
+                && data[4] == 0x0D
+                && data[5] == 0x0A
+                && data[6] == 0x1A
+                && data[7] == 0x0A;
+        return jpeg || png;
     }
 
     public List<ReportResponse> getAllReports(ReportStatus status) {

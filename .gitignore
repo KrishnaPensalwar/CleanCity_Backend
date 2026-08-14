@@ -36,7 +36,11 @@ out/
 ### VS Code ###
 .vscode/
 
-### Environment Variables ###
+### Environment Variables / secrets ###
 .env
+.env.local
+.env.*.local
+*.pem
+credentials*.json
 
 src/main/resources/application.properties

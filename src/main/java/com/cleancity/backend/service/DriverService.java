@@ -1,5 +1,6 @@
 package com.cleancity.backend.service;
 
+import com.cleancity.backend.auth.domain.DriverApprovalStatus;
 import com.cleancity.backend.dto.DriverDto;
 import com.cleancity.backend.dto.ReportResponse;
 import com.cleancity.backend.entity.Driver;
@@ -80,6 +81,10 @@ public class DriverService {
             throw new ApiException(ErrorCode.DRIVER_INACTIVE);
         }
 
+        if (driver.getApprovalStatus() != DriverApprovalStatus.APPROVED) {
+            throw new ApiException(ErrorCode.DRIVER_NOT_APPROVED);
+        }
+
         report.setAssignedDriver(driver);
         report.setStatus(ReportStatus.ASSIGNED);
         report.setAssignedAt(LocalDateTime.now());
@@ -97,9 +102,16 @@ public class DriverService {
     }
 
     public UUID requireDriverProfileId(UUID accountId) {
-        return driverRepository.findByAccountId(accountId)
-                .map(Driver::getId)
+        Driver driver = driverRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ApiException(ErrorCode.DRIVER_NOT_FOUND));
+
+        if (Boolean.FALSE.equals(driver.getIsActive())) {
+            throw new ApiException(ErrorCode.DRIVER_INACTIVE);
+        }
+        if (driver.getApprovalStatus() != DriverApprovalStatus.APPROVED) {
+            throw new ApiException(ErrorCode.DRIVER_NOT_APPROVED);
+        }
+        return driver.getId();
     }
 
     @Transactional(readOnly = true)
@@ -218,6 +230,22 @@ public class DriverService {
         }
         if (r.getStatus() != ReportStatus.ASSIGNED) {
             throw new ApiException(ErrorCode.REPORT_NOT_ASSIGNED);
+        }
+
+        if (image == null || image.isEmpty()) {
+            throw new ApiException(ErrorCode.IMAGE_REQUIRED);
+        }
+        String contentType = image.getContentType();
+        if (contentType == null
+                || (!contentType.equalsIgnoreCase("image/jpeg") && !contentType.equalsIgnoreCase("image/png"))) {
+            throw new ApiException(ErrorCode.INVALID_IMAGE_TYPE);
+        }
+        byte[] bytes = image.getBytes();
+        if (bytes.length < 3
+                || !(((bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF)
+                || (bytes.length >= 8
+                && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47))) {
+            throw new ApiException(ErrorCode.INVALID_IMAGE_CONTENT);
         }
 
         String imageUrl = s3StorageService.uploadFile(image);

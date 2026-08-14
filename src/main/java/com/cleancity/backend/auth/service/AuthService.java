@@ -137,7 +137,7 @@ public class AuthService {
         return new MessageResponse("Account upgraded to driver successfully", true);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -173,6 +173,11 @@ public class AuthService {
 
         refreshToken = refreshTokenService.verifyExpiration(refreshToken);
         Account account = refreshToken.getAccount();
+
+        if (account.getStatus() != AccountStatus.ACTIVE) {
+            refreshTokenService.deleteByAccountId(account.getId());
+            throw new ApiException(ErrorCode.ACCOUNT_INACTIVE);
+        }
 
         refreshTokenService.deleteByToken(refreshTokenValue);
         RefreshToken newRefresh = refreshTokenService.createRefreshToken(account.getId());

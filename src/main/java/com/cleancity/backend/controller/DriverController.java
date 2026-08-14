@@ -52,10 +52,25 @@ public class DriverController {
             @RequestParam double lat,
             @RequestParam double lon,
             @RequestParam(defaultValue = "5000") int radiusMeters,
-            @RequestParam(defaultValue = "50") int limit) {
+            @RequestParam(defaultValue = "50") int limit,
+            Authentication authentication) {
+
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            throw new ApiException(ErrorCode.INVALID_COORDINATES);
+        }
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
+        if (!isAdmin) {
+            AccountDetailsImpl account = (AccountDetailsImpl) authentication.getPrincipal();
+            driverService.requireDriverProfileId(account.getAccountId());
+        }
+
+        int safeRadius = Math.min(Math.max(radiusMeters, 1), 20_000);
+        int safeLimit = Math.min(Math.max(limit, 1), 100);
 
         return ResponseEntity.ok(
-                driverService.findNearby(lat, lon, radiusMeters, limit)
+                driverService.findNearby(lat, lon, safeRadius, safeLimit)
         );
     }
 

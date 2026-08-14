@@ -37,6 +37,7 @@ public class RefreshTokenService {
         refreshTokenRepository.findByToken(token).ifPresent(refreshTokenRepository::delete);
     }
 
+    @Transactional
     public RefreshToken createRefreshToken(UUID accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
@@ -44,11 +45,12 @@ public class RefreshTokenService {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setAccount(account);
         refreshToken.setExpiry(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000));
-        refreshToken.setToken(UUID.randomUUID().toString());
+        refreshToken.setToken(java.util.UUID.randomUUID().toString() + "-" + java.util.UUID.randomUUID());
 
         return refreshTokenRepository.save(refreshToken);
     }
 
+    @Transactional
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.getExpiry().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.delete(token);
